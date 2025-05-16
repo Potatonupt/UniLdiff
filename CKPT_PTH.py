@@ -1,0 +1,6 @@
+LLAVA_CLIP_PATH = '/data/czh/models/clip-vit-large-patch14-336/'
+LLAVA_MODEL_PATH = '/data/czh/models/llava-v1.5-13b/'
+SDXL_PATH = '/data/czh/models/RealVisXL_V4.0/'
+FAITHDIFF_PATH = '/data/czh/models/faithdiff/FaithDiff.bin'
+VAE_FP16_PATH = '/data/czh/models/sdxl-vae-fp16-fix/'
+BSRNet_PATH = '/data/czh/models/bsrnet/BSRNet.pth'

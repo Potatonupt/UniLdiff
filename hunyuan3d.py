@@ -408,3 +408,6 @@ class Hunyuan3DDiT(nn.Module):
         latent = latent[:, cond.shape[1]:, ...]
         latent = self.final_layer(latent, vec)
         return latent
+
+
+#加一点东西

@@ -465,6 +465,9 @@ class UNet2DConditionModel(OriginalUNet2DConditionModel, ConfigMixin, UNet2DCond
                 additional_dicts['denoise_encoder'][key[len('denoise_encoder.'):]] = value
             elif key.startswith('information_transformer_layers.'):
                 additional_dicts['information_transformer_layers'][key[len('information_transformer_layers.'):]] = value
+            elif key.startswith('information_transformer_layes.'):  # <- 兼容旧模型拼写
+                print("Warning: using legacy key 'information_transformer_layes'")
+                additional_dicts['information_transformer_layers'][key[len('information_transformer_layes.'):]] = value
             elif key.startswith('condition_embedding.'):
                 additional_dicts['condition_embedding'][key[len('condition_embedding.'):]] = value
             elif key.startswith('agg_net.'):

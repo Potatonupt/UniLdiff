@@ -57,7 +57,7 @@ use_bsrnet = args.use_bsrnet
 
 # load FaithDiff FP16
 pipe = FaithDiff_pipeline(sdxl_path=SDXL_PATH, VAE_FP16_path=VAE_FP16_PATH,
-                          FaithDiff_path="/data/czh/code/faithdiff/train_FaithDiff_stage_2_offline/4kinds/checkpoint-36000/FaithDiff.bin",
+                          FaithDiff_path="/data/czh/code/faithdiff/train_FaithDiff_stage_2_offline/checkpoint-16000/FaithDiff.bin",
                           use_fp8=use_fp8)
 pipe = pipe.to(Diffusion_device)
 
@@ -102,8 +102,7 @@ with torch.no_grad():
             with open(json_path, 'r') as f:
                 json_file = json.load(f)
         else:
-            stripped_name = img_name[len('rain-'):]
-            alt_json_path = os.path.join(args.json_dir, stripped_name + '.json')
+            alt_json_path = os.path.join(args.json_dir, 'no' + img_name + '.json')
             if os.path.isfile(alt_json_path):
                 with open(alt_json_path, 'r') as f:
                     json_file = json.load(f)
@@ -131,7 +130,7 @@ with torch.no_grad():
                          overlap=args.latent_tiled_overlap,
                          target_size=(args.latent_tiled_size, args.latent_tiled_size)).images[0]
         if img_name.startswith('rain-'):
-            img_name="no"+img_name
+            img_name = "no" + img_name
         path = os.path.join(args.save_dir, img_name + '.png')
 
         # if (width_now != width_init) or (height_now != height_init):

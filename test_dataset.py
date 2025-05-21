@@ -6,9 +6,9 @@ dehazing_file_path = ['/data/czh/data/train/allinone/OTS/GT']
 lq_dehazing_file_path = ['/data/czh/data/train/allinone/OTS/LQ']
 dehazing_json_file_path = ['./json/OTS']
 
-deraining_file_path = ['/data/czh/data/train/allinone/Rain100L/GT']
-lq_deraining_file_path = ['/data/czh/data/train/allinone/Rain100L/LQ']
-deraining_json_file_path = ['./json/rain100l']
+deraining_file_path = ['/data/czh/data/train/allinone/Rain100L/GT', '/data/czh/data/train/allinone/rain1800/GT']
+lq_deraining_file_path = ['/data/czh/data/train/allinone/Rain100L/LQ', '/data/czh/data/train/allinone/rain1800/LQ']
+deraining_json_file_path = ['./json/rain100l', './json/rain1800']
 
 denoising_file_path = ['/data/czh/data/train/allinone/BSDWED15/GT', '/data/czh/data/train/allinone/BSDWED25/GT',
                        '/data/czh/data/train/allinone/BSDWED50/GT']
@@ -23,6 +23,7 @@ deblurring_json_file_path = ['./json/motion-blurry']
 low_light_file_path = ['/data/czh/data/train/allinone/low-light/GT/']
 lq_low_light_file_path = ['/data/czh/data/train/allinone/low-light/LQ/']
 low_light_json_file_path = ['./json/low-light']
+
 tokenizer = CLIPTokenizer.from_pretrained("/data/czh/models/RealVisXL_V4.0/", subfolder="tokenizer")
 tokenizer_2 = CLIPTokenizer.from_pretrained("/data/czh/models/RealVisXL_V4.0/", subfolder="tokenizer_2")
 yml_kernel = './train_kernel.yml'

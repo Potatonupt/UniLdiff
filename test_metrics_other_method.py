@@ -82,14 +82,14 @@ def main():
     parser.add_argument(
         "--inp_imgs",
         nargs="+",
-        default=['/data/czh/code/faithdiff/save/rain100l_4kinds_epech_8000'],  # /data/czh/code/osediff/result/rain100L
+        default=['/data/czh/code/faithdiff/save/5kinds/SOTS'],  # /data/czh/code/osediff/result/rain100L
         help="Path(s) to the input (SR) images directories."
     )
 
     parser.add_argument(
         "--gt_imgs",
         nargs="+",
-        default=['/data/czh/data/test/rainy1/GT'],
+        default=['/data/czh/data/test/SOTS/GT'],
         # /data/wp/datasets/Test/Derain/Rain100L/target /data/wp/work2/daclip-uir-main/datasets/universal/val/noisy15/GT/ /data/wp/work2/daclip-uir-main/datasets/universal/val/low-light/GT/ /data/wp/work2/daclip-uir-main/datasets/universal/val/motion-blurry/GT/
     )
 

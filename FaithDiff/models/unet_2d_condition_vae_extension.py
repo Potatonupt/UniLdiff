@@ -11,10 +11,10 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+import os
 from dataclasses import dataclass
 from typing import Any, Dict, Optional, Tuple, Union
-
+import torchvision.transforms.functional as TF
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -27,6 +27,9 @@ from diffusers.utils import USE_PEFT_BACKEND, BaseOutput, deprecate, logging, sc
 from diffusers.models.unets.unet_2d_blocks import UNetMidBlock2D, get_down_block
 from collections import OrderedDict
 from diffusers.utils import is_torch_version
+from torchvision.utils import save_image
+
+from FaithDiff.models.dit_block import MLPEmbedder, DiTBlock
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
@@ -391,11 +394,17 @@ class UNet2DConditionModel(OriginalUNet2DConditionModel, ConfigMixin, UNet2DCond
         if dtype is not None:
             self.denoise_encoder.dtype = dtype
     def init_information_transformer_layers(self):
-        num_trans_channel = 640
+        # num_trans_channel = 640
         num_trans_head = 8
         num_trans_layer = 2
         num_proj_channel = 320
-        self.information_transformer_layers = nn.Sequential(*[ResidualAttentionBlock(num_trans_channel, num_trans_head) for _ in range(num_trans_layer)])
+        # self.information_transformer_layers = nn.Sequential(*[ResidualAttentionBlock(640, num_trans_head) for _ in range(num_trans_layer)])
+        self.information_transformer_layers = DiTBlock()
+        if isinstance(self.information_transformer_layers, DiTBlock):
+            num_trans_channel = 1024
+        else:
+            num_trans_channel = 640
+
         self.spatial_ch_projs = zero_module(nn.Linear(num_trans_channel, num_proj_channel))
     def init_ControlNetConditioningEmbedding(self, channel=512):
         self.condition_embedding = ControlNetConditioningEmbedding(320, channel)
@@ -415,7 +424,6 @@ class UNet2DConditionModel(OriginalUNet2DConditionModel, ConfigMixin, UNet2DCond
             
         if self.information_transformer_layers is None:
             self.init_information_transformer_layers()
-            print("init_information_transformer_layers success")
         else:
             print("init_information_transformer_layers error")
             
@@ -580,8 +588,16 @@ class UNet2DConditionModel(OriginalUNet2DConditionModel, ConfigMixin, UNet2DCond
             if use_condition_embedding:
                 input_embedding = self.condition_embedding(input_embedding)  # [B, 320, H, W]
             batch_size, channel, height, width = input_embedding.shape
-            concat_feat = torch.cat([sample, input_embedding], dim=1).view(batch_size, 2 * channel, height * width).transpose(1, 2)
-            concat_feat = self.information_transformer_layers(concat_feat)
+
+            # concat_feat = torch.cat([sample, input_embedding], dim=1).view(batch_size, 2 * channel,
+            #                                                                height * width).transpose(1, 2)
+            # concat_feat = self.information_transformer_layers(concat_feat)
+
+            concat_feat = self.information_transformer_layers(x=sample, t=timestep, contexts=input_embedding)
+
+            # print("concat_feat shape:", concat_feat.shape)  # [B, N, C]
+            # 原本是[16, 4096, 640] 现在直接输出[16, 4096, 320]
+
             feat_alpha = self.spatial_ch_projs(concat_feat).transpose(1, 2).view(batch_size, channel, height, width)
             sample = sample + feat_alpha if add_sample else feat_alpha  # Update sample as in the original version
 
@@ -689,6 +705,7 @@ class UNet2DConditionModel(OriginalUNet2DConditionModel, ConfigMixin, UNet2DCond
                     res_hidden_states_tuple=res_samples,
                     upsample_size=upsample_size,
                 )
+            # print(sample.shape)
 
         # 6. post-process
         if self.conv_norm_out:

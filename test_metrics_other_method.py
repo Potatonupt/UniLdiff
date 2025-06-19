@@ -82,14 +82,26 @@ def main():
     parser.add_argument(
         "--inp_imgs",
         nargs="+",
-        default=['/data/czh/code/faithdiff/save/5kinds/SOTS'],  # /data/czh/code/osediff/result/rain100L
+        default=
+        [
+            '/data/czh/code/faithdiff/save/tmp/rain100l',
+            # '/data/czh/code/faithdiff/save/epoch16000/rain100l',
+            # '/data/czh/code/faithdiff/save/epoch16000/motion-blurry',
+            # '/data/czh/code/faithdiff/save/epoch16000/noisy50',
+            # '/data/czh/code/faithdiff/save/epoch16000/SOTS'
+        ],
         help="Path(s) to the input (SR) images directories."
     )
 
     parser.add_argument(
         "--gt_imgs",
         nargs="+",
-        default=['/data/czh/data/test/SOTS/GT'],
+        default=['/data/czh/data/test/rainy1/GT',
+                 # '/data/czh/data/test/rainy1/GT',
+                 # '/data/czh/data/test/motion-blurry/GT',
+                 # '/data/czh/data/test/noisy50/GT',
+                 # '/data/czh/data/test/SOTS/GT'
+                 ],
         # /data/wp/datasets/Test/Derain/Rain100L/target /data/wp/work2/daclip-uir-main/datasets/universal/val/noisy15/GT/ /data/wp/work2/daclip-uir-main/datasets/universal/val/low-light/GT/ /data/wp/work2/daclip-uir-main/datasets/universal/val/motion-blurry/GT/
     )
 
@@ -196,18 +208,19 @@ def main():
             start_time = time.time()
 
             # promptIR
-            degraded_img = crop_img(
-                np.array(Image.open(sr_path).convert('RGB')), base=16)
-
-            clean_img = crop_img(
-                np.array(Image.open(gt_path).convert('RGB')), base=16)
-
-            # clean_pil = Image.open(gt_path).convert('RGB')
-            # clean_img = np.array(clean_pil)
+            # degraded_img = crop_img(
+            #     np.array(Image.open(sr_path).convert('RGB')), base=16)
             #
-            # degraded_pil = Image.open(sr_path).convert('RGB')
-            # degraded_pil_resized = degraded_pil.resize(clean_pil.size, Image.LANCZOS)
-            # degraded_img = np.array(degraded_pil_resized)
+            # clean_img = crop_img(
+            #     np.array(Image.open(gt_path).convert('RGB')), base=16)
+
+            clean_pil = Image.open(gt_path).convert('RGB')
+            clean_img = np.array(clean_pil)
+
+            degraded_pil = Image.open(sr_path).convert('RGB')
+            if degraded_pil.size != clean_pil.size:
+                degraded_pil = degraded_pil.resize(clean_pil.size, Image.LANCZOS)
+            degraded_img = np.array(degraded_pil)
 
             sr_tensor = img2tensor(degraded_img, bgr2rgb=True, float32=True).unsqueeze(0).to(
                 device).contiguous() / 255.0

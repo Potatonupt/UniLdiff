@@ -57,7 +57,7 @@ use_bsrnet = args.use_bsrnet
 
 # load FaithDiff FP16
 pipe = FaithDiff_pipeline(sdxl_path=SDXL_PATH, VAE_FP16_path=VAE_FP16_PATH,
-                          FaithDiff_path="/data/czh/code/faithdiff/train_FaithDiff_stage_2_offline/checkpoint-16000/FaithDiff.bin",
+                          FaithDiff_path="/data/czh/code/faithdiff/train_FaithDiff_stage_2_offline/checkpoint-2000/FaithDiff.bin",
                           use_fp8=use_fp8)
 pipe = pipe.to(Diffusion_device)
 
@@ -82,67 +82,124 @@ if use_llava:
 else:
     llava_agent = None
 
-os.makedirs(args.save_dir, exist_ok=True)
-os.makedirs(args.json_dir, exist_ok=True)
 
-exist_file = os.listdir(args.save_dir)
-with torch.no_grad():
-    for file_name in sorted(os.listdir(args.img_dir)):
-        img_name, ext = os.path.splitext(file_name)
-        if ext == ".json":
-            continue
+# 定义五个路径集合
+input_dirs = [
+    "/data/czh/data/test/rainy1/LQ",
+    "/data/czh/data/test/low-light/LQ",
+    "/data/czh/data/test/SOTS/LQ",
+    "/data/czh/data/test/motion-blurry/LQ",
+    "/data/czh/data/test/noisy50/LQ"
+]
 
-        image = Image.open(os.path.join(args.img_dir, file_name)).convert('RGB')
+json_dirs = [
+    "./json_test/rain100l",
+    "./json_test/low-light",
+    "./json_test/SOTS",
+    "./json_test/motion-blurry",
+    "./json_test/noise"
+]
 
-        # 构造文件路径
-        json_path = os.path.join(args.json_dir, img_name + '.json')
+save_dirs = [
+    "./save/tmp/rain100l",
+    "./save/tmp/low-light",
+    "./save/tmp/SOTS",
+    "./save/tmp/motion-blurry",
+    "./save/tmp/noisy50"
+]
 
-        # 尝试加载原始文件
-        if os.path.isfile(json_path):
-            with open(json_path, 'r') as f:
-                json_file = json.load(f)
-        else:
-            alt_json_path = os.path.join(args.json_dir, 'no' + img_name + '.json')
-            if os.path.isfile(alt_json_path):
-                with open(alt_json_path, 'r') as f:
+# input_dirs = [
+#     # "/data/czh/data/train/allinone/Rain100L/LQ",
+#     # "/data/czh/data/test/rainy1/LQ",
+#     "/data/czh/data/train/allinone/low-light/LQ",
+#     "/data/czh/data/train/allinone/OTS/LQ",
+#     "/data/czh/data/train/allinone/motion-blurry/LQ",
+#     "/data/czh/data/train/allinone/BSDWED50/LQ"
+# ]
+#
+# json_dirs = [
+#     # "./json/rain100l",
+#     # "./json_test/rain100l",
+#     "./json/low-light",
+#     "./json/OTS",
+#     "./json/motion-blurry",
+#     "./json/noise"
+# ]
+#
+# save_dirs = [
+#     # "./save/fornaf/rain100l",
+#     # "./save/fornaf/rain100l_2",
+#     "./save/fornaf/low-light",
+#     "./save/fornaf/SOTS",
+#     "./save/fornaf/motion-blurry",
+#     "./save/fornaf/noisy50"
+# ]
+
+valid_extensions = ('.png', '.jpg', '.jpeg', '.bmp', '.tif', '.tiff', '.webp')
+
+for input_dir, json_dir, save_dir in zip(input_dirs, json_dirs, save_dirs):
+    print(f"Processing: {input_dir}")
+    os.makedirs(save_dir, exist_ok=True)
+    os.makedirs(json_dir, exist_ok=True)
+
+    exist_file = os.listdir(save_dir)
+    with torch.no_grad():
+        for file_name in sorted(os.listdir(input_dir)):
+            img_name, ext = os.path.splitext(file_name)
+            if ext.lower() not in valid_extensions:
+                continue  # 忽略非图像文件（包括 .json、.DS_Store 等）
+
+            image = Image.open(os.path.join(input_dir, file_name)).convert('RGB')
+
+            # 构造文件路径
+            json_path = os.path.join(json_dir, img_name + '.json')
+
+            # 尝试加载原始文件
+            if os.path.isfile(json_path):
+                with open(json_path, 'r') as f:
                     json_file = json.load(f)
             else:
-                # 如果还是找不到文件，可以定义一个备用方案或报错
-                raise FileNotFoundError(f"Neither {json_path} nor {alt_json_path} found.")
-        init_text = json_file["caption"]
-        words = init_text.split()
-        words = words[3:]
-        words[0] = words[0].capitalize()
-        text = ' '.join(words)
-        text = text.split('. ')
-        text = '. '.join(text[:2]) + '.'
+                alt_json_path = os.path.join(json_dir, 'no' + img_name + '.json')
+                if os.path.isfile(alt_json_path):
+                    with open(alt_json_path, 'r') as f:
+                        json_file = json.load(f)
+                else:
+                    # 如果还是找不到文件，可以定义一个备用方案或报错
+                    raise FileNotFoundError(f"Neither {json_path} nor {alt_json_path} found.")
+            init_text = json_file["caption"]
+            words = init_text.split()
+            words = words[3:]
+            words[0] = words[0].capitalize()
+            text = ' '.join(words)
+            text = text.split('. ')
+            text = '. '.join(text[:2]) + '.'
 
-        print(text)
+            print(text)
 
-        # step 2: Restoration
-        input_image, width_init, height_init, width_now, height_now = check_image_size(image)
-        prompt_init = text
-        negative_prompt_init = ""
-        generator = torch.Generator(device='cuda').manual_seed(args.seed)
-        gen_image = pipe(lr_img=input_image, prompt=prompt_init, negative_prompt=negative_prompt_init,
-                         num_inference_steps=args.num_inference_steps, guidance_scale=args.guidance_scale,
-                         generator=generator, start_point=args.start_point, height=height_now, width=width_now,
-                         overlap=args.latent_tiled_overlap,
-                         target_size=(args.latent_tiled_size, args.latent_tiled_size)).images[0]
-        if img_name.startswith('rain-'):
-            img_name = "no" + img_name
-        path = os.path.join(args.save_dir, img_name + '.png')
+            # step 2: Restoration
+            input_image, width_init, height_init, width_now, height_now = check_image_size(image)
+            prompt_init = text
+            negative_prompt_init = ""
+            generator = torch.Generator(device='cuda').manual_seed(args.seed)
+            gen_image = pipe(lr_img=input_image, prompt=prompt_init, negative_prompt=negative_prompt_init,
+                             num_inference_steps=args.num_inference_steps, guidance_scale=args.guidance_scale,
+                             generator=generator, start_point=args.start_point, height=height_now, width=width_now,
+                             overlap=args.latent_tiled_overlap,
+                             target_size=(args.latent_tiled_size, args.latent_tiled_size)).images[0]
+            if img_name.startswith('rain-'):
+                img_name = "no" + img_name
+            path = os.path.join(save_dir, img_name + '.png')
 
-        # if (width_now != width_init) or (height_now != height_init):
-        #     cropped_image = gen_image.resize((width_init, height_init), Image.LANCZOS)
+            # if (width_now != width_init) or (height_now != height_init):
+            #     cropped_image = gen_image.resize((width_init, height_init), Image.LANCZOS)
 
-        cropped_image = gen_image
+            cropped_image = gen_image
 
-        if args.color_fix == 'nofix':
-            out_image = cropped_image
-        else:
-            if args.color_fix == 'wavelet':
-                out_image = wavelet_color_fix(cropped_image, image)
-            elif args.color_fix == 'adain':
-                out_image = adain_color_fix(cropped_image, image)
-        out_image.save(path)
+            if args.color_fix == 'nofix':
+                out_image = cropped_image
+            else:
+                if args.color_fix == 'wavelet':
+                    out_image = wavelet_color_fix(cropped_image, image)
+                elif args.color_fix == 'adain':
+                    out_image = adain_color_fix(cropped_image, image)
+            out_image.save(path)

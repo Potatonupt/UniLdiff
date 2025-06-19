@@ -648,7 +648,7 @@ def main():
     unet.denoise_encoder.load_state_dict(denoise_encoder.state_dict())
     del denoise_encoder
 
-    unet.load_state_dict(torch.load('/data/czh/code/faithdiff/train_FaithDiff_stage_1_offline/checkpoint-6000/pretrain.bin'), strict=True)
+    unet.load_state_dict(torch.load('/data/czh/code/faithdiff/train_FaithDiff_stage_1_offline/checkpoint-5000/pretrain.bin'), strict=True)
     unet.train()
 
     vae.requires_grad_(False)
@@ -754,9 +754,9 @@ def main():
     lq_dehazing_file_path = ['/data/czh/data/train/allinone/OTS/LQ']
     dehazing_json_file_path = ['./json/OTS']
 
-    deraining_file_path = ['/data/czh/data/train/allinone/Rain100L/GT', '/data/czh/data/train/allinone/rain1800/GT']
-    lq_deraining_file_path = ['/data/czh/data/train/allinone/Rain100L/LQ', '/data/czh/data/train/allinone/rain1800/LQ']
-    deraining_json_file_path = ['./json/rain100l', './json/rain1800']
+    deraining_file_path = ['/data/czh/data/train/allinone/Rain100L/GT']
+    lq_deraining_file_path = ['/data/czh/data/train/allinone/Rain100L/LQ']
+    deraining_json_file_path = ['./json/rain100l']
 
     denoising_file_path = ['/data/czh/data/train/allinone/BSDWED15/GT', '/data/czh/data/train/allinone/BSDWED25/GT',
                            '/data/czh/data/train/allinone/BSDWED50/GT']

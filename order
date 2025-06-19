@@ -9,3 +9,6 @@ CUDA_VISIBLE_DEVICES=0,1 python test.py --img_dir='/data/czh/data/test/motion-bl
 
 
 CUDA_VISIBLE_DEVICES=1,2 python test.py --img_dir='/data/czh/data/test/rainy1/LQ' --save_dir=./save/5kinds/rain100l --upscale=1 --guidance_scale=5 --num_inference_steps=20 --json_dir=./json_test/rain100l/
+
+
+CUDA_VISIBLE_DEVICES=1,2 python test.py  --upscale=1 --guidance_scale=5 --num_inference_steps=20

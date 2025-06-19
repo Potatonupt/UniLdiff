@@ -31,6 +31,19 @@ def timestep_embedding(t: Tensor, dim, max_period=10000, time_factor: float = 10
     :param max_period: controls the minimum frequency of the embeddings.
     :return: an (N, D) Tensor of positional embeddings.
     """
+    if not torch.is_tensor(t):
+        # 非 tensor，包装成 1D tensor
+        # print("t is not a tensor")
+        t = torch.tensor([t], dtype=torch.float32)
+    elif t.dim() == 0:
+        # 0D tensor 升维成 1D
+        # print("t is a 0D tensor")
+        t = t.unsqueeze(0).to(torch.float32)
+    else:
+        # 1D tensor，确保是 float32
+        # print("t is a 1D tensor")
+        t = t.to(torch.float32)
+
     t = time_factor * t
     half = dim // 2
     freqs = torch.exp(-math.log(max_period) * torch.arange(start=0, end=half, dtype=torch.float32) / half).to(
@@ -254,14 +267,136 @@ class SingleStreamBlock(nn.Module):
 
 
 class LastLayer(nn.Module):
-    def __init__(self, hidden_size: int, patch_size: int, out_channels: int):
+    def __init__(self, hidden_size: int, out_channels: int):
         super().__init__()
         self.norm_final = nn.LayerNorm(hidden_size, elementwise_affine=False, eps=1e-6)
-        self.linear = nn.Linear(hidden_size, patch_size * patch_size * out_channels, bias=True)
+        self.linear = nn.Linear(hidden_size, hidden_size//2, bias=True)
         self.adaLN_modulation = nn.Sequential(nn.SiLU(), nn.Linear(hidden_size, 2 * hidden_size, bias=True))
 
     def forward(self, x: Tensor, vec: Tensor) -> Tensor:
         shift, scale = self.adaLN_modulation(vec).chunk(2, dim=1)
         x = (1 + scale[:, None, :]) * self.norm_final(x) + shift[:, None, :]
-        x = self.linear(x)
+        x = self.linear(x)  # [B, H*W, out_channels]
+
         return x
+
+
+
+class DiTBlock(nn.Module):
+    def __init__(
+        self,
+        in_channels: int = 320,
+        context_in_dim: int = 320,
+        hidden_size: int = 1024,
+        mlp_ratio: float = 4.0,
+        num_heads: int = 16,
+        depth: int = 1,
+        depth_single_blocks: int = 1,
+        axes_dim: List[int] = [64],
+        theta: int = 10_000,
+        qkv_bias: bool = True,
+        time_factor: float = 1000,
+        guidance_embed: bool = False,
+        ckpt_path: Optional[str] = None,
+        **kwargs,
+    ):
+        super().__init__()
+        self.in_channels = in_channels
+        self.context_in_dim = context_in_dim
+        self.hidden_size = hidden_size
+        self.mlp_ratio = mlp_ratio
+        self.num_heads = num_heads
+        self.depth = depth
+        self.depth_single_blocks = depth_single_blocks
+        self.axes_dim = axes_dim
+        self.theta = theta
+        self.qkv_bias = qkv_bias
+        self.time_factor = time_factor
+        self.out_channels = self.in_channels
+        self.guidance_embed = guidance_embed
+
+        if hidden_size % num_heads != 0:
+            raise ValueError(
+                f"Hidden size {hidden_size} must be divisible by num_heads {num_heads}"
+            )
+        pe_dim = hidden_size // num_heads
+        if sum(axes_dim) != pe_dim:
+            raise ValueError(f"Got {axes_dim} but expected positional dim {pe_dim}")
+        self.hidden_size = hidden_size
+        self.num_heads = num_heads
+        self.latent_in = nn.Linear(self.in_channels, self.hidden_size, bias=True)
+
+        self.time_in = MLPEmbedder(in_dim=256, hidden_dim=self.hidden_size)
+        self.time_in2 = MLPEmbedder(in_dim=256, hidden_dim=self.hidden_size*2)
+        self.cond_in = nn.Linear(self.context_in_dim, self.hidden_size)
+
+        self.double_blocks = nn.ModuleList(
+            [
+                DoubleStreamBlock(
+                    self.hidden_size,
+                    self.num_heads,
+                    mlp_ratio=mlp_ratio,
+                    qkv_bias=qkv_bias,
+                )
+                for _ in range(depth)
+            ]
+        )
+
+        self.single_blocks = nn.ModuleList(
+            [
+                SingleStreamBlock(
+                    self.hidden_size * 2,
+                    self.num_heads,
+                    mlp_ratio=mlp_ratio,
+                )
+                for _ in range(depth_single_blocks)
+            ]
+        )
+
+        self.final_layer = LastLayer(self.hidden_size*2, self.out_channels)
+
+    def forward(
+        self,
+        x,
+        t,
+        contexts,
+        **kwargs,
+    ) -> Tensor:
+
+        x_B, x_C, x_H, x_W = x.shape  # x.shape == [B, 320, H, W]
+        x = x.view(x_B, x_C, x_H * x_W).permute(0, 2, 1)  # → [B, H*W, 320]
+        latent_in = self.latent_in(x)   # → [B, H*W, hidden_size]
+
+
+        B, C, H, W = contexts.shape
+        contexts = contexts.view(B, C, H * W).permute(0, 2, 1)  # → [B, H*W, 320]
+        cond = self.cond_in(contexts)  # → [B, H*W, hidden_size]
+
+        # if isinstance(t, torch.Tensor):
+        #     if t.dim() == 0:
+        #         print("Timestep t (scalar):", t.item())
+        #     else:
+        #         print("Timestep t (vector):", t)
+        # else:
+        #     print("Timestep t (not tensor):", t)
+        vec = self.time_in(timestep_embedding(t, 256, self.time_factor).to(dtype=latent_in.dtype))
+        vec2 = self.time_in2(timestep_embedding(t, 256, self.time_factor).to(dtype=latent_in.dtype))
+        assert not torch.isnan(vec).any(), "vec has NaN"
+        assert not torch.isinf(vec).any(), "vec has Inf"
+
+        pe = None
+        for block in self.double_blocks:
+            latent, cond = block(img=latent_in, txt=cond, vec=vec, pe=pe)
+
+        #！！！！！！！！
+        latent = torch.cat((cond, latent_in), 2)
+        for block in self.single_blocks:
+            latent = block(latent, vec=vec2, pe=pe)
+
+        # latent = latent[:, cond.shape[1]:, ...]
+        latent = self.final_layer(latent, vec2)
+
+        assert not torch.isnan(latent).any(), "latent has NaN"
+        assert not torch.isinf(latent).any(), "latent has Inf"
+
+        return latent

@@ -57,7 +57,7 @@ use_bsrnet = args.use_bsrnet
 
 # load FaithDiff FP16
 pipe = FaithDiff_pipeline(sdxl_path=SDXL_PATH, VAE_FP16_path=VAE_FP16_PATH,
-                          FaithDiff_path="/data/czh/code/faithdiff/train_FaithDiff_stage_2_offline/checkpoint-2000/FaithDiff.bin",
+                          FaithDiff_path="/data/czh/code/faithdiff/train_FaithDiff_stage_2_offline/cdd/checkpoint-26000/FaithDiff.bin",
                           use_fp8=use_fp8)
 pipe = pipe.to(Diffusion_device)
 
@@ -82,30 +82,79 @@ if use_llava:
 else:
     llava_agent = None
 
+# # 定义五个路径集合
+# input_dirs = [
+#     # "/data/czh/data/test/rainy1/LQ",
+#     "/data/czh/data/test/low-light/LQ",
+#     # "/data/czh/data/test/SOTS/LQ",
+#     # "/data/czh/data/test/motion-blurry/LQ",
+#     # "/data/czh/data/test/noisy50/LQ",
+#     "/data/czh/data/test/noisy25/LQ",
+#     # "/data/czh/data/test/noisy15/LQ"
+# ]
+#
+# json_dirs = [
+#     # "./json_test/rain100l",
+#     "./json_test/low-light",
+#     # "./json_test/SOTS",
+#     # "./json_test/motion-blurry",
+#     # "./json_test/noise",
+#     "./json_test/noise",
+#     # "./json_test/noise"
+# ]
+#
+# save_dirs = [
+#     # "./save/dit14000/rain100l",
+#     "./save/del-single/low-light",
+#     # "./save/dit14000/SOTS",
+#     # "./save/dit14000/motion-blurry",
+#     # "./save/dit14000/noisy50",
+#     "./save/del-double/noisy25",
+#     # "./save/epoch40000/noisy15"
+# ]
 
 # 定义五个路径集合
 input_dirs = [
-    "/data/czh/data/test/rainy1/LQ",
-    "/data/czh/data/test/low-light/LQ",
-    "/data/czh/data/test/SOTS/LQ",
-    "/data/czh/data/test/motion-blurry/LQ",
-    "/data/czh/data/test/noisy50/LQ"
+    # "/data/czh/data/test/CDD11_test/haze",
+    "/data/czh/data/test/unseen",
+    "/data/czh/data/test/CDD11_test/haze_snow",
+    "/data/czh/data/test/CDD11_test/low",
+    "/data/czh/data/test/CDD11_test/low_haze",
+    "/data/czh/data/test/CDD11_test/low_haze_rain",
+    "/data/czh/data/test/CDD11_test/low_haze_snow",
+    "/data/czh/data/test/CDD11_test/low_rain",
+    "/data/czh/data/test/CDD11_test/low_snow",
+    "/data/czh/data/test/CDD11_test/rain",
+    "/data/czh/data/test/CDD11_test/snow",
 ]
 
 json_dirs = [
-    "./json_test/rain100l",
-    "./json_test/low-light",
-    "./json_test/SOTS",
-    "./json_test/motion-blurry",
-    "./json_test/noise"
+    "./json_test/snow",
+    "./json_test/CDD11_test",
+    "./json_test/CDD11_test",
+    "./json_test/CDD11_test",
+    "./json_test/CDD11_test",
+    "./json_test/CDD11_test",
+    "./json_test/CDD11_test",
+    "./json_test/CDD11_test",
+    "./json_test/CDD11_test",
+    "./json_test/CDD11_test",
+    "./json_test/CDD11_test",
+
 ]
 
 save_dirs = [
-    "./save/tmp/rain100l",
-    "./save/tmp/low-light",
-    "./save/tmp/SOTS",
-    "./save/tmp/motion-blurry",
-    "./save/tmp/noisy50"
+    # "./save/cdd/haze",
+    "./save/unseen/snow",
+    "./save/cdd/haze_snow",
+    "./save/cdd/low",
+    "./save/cdd/low_haze",
+    "./save/cdd/low_haze_rain",
+    "./save/cdd/low_haze_snow",
+    "./save/cdd/low_rain",
+    "./save/cdd/low_snow",
+    "./save/cdd/rain",
+    "./save/cdd/snow",
 ]
 
 # input_dirs = [
@@ -129,14 +178,27 @@ save_dirs = [
 # save_dirs = [
 #     # "./save/fornaf/rain100l",
 #     # "./save/fornaf/rain100l_2",
-#     "./save/fornaf/low-light",
-#     "./save/fornaf/SOTS",
-#     "./save/fornaf/motion-blurry",
-#     "./save/fornaf/noisy50"
+#     "./save/del/low-light",
+#     "./save/del/SOTS",
+#     "./save/del/motion-blurry",
+#     "./save/del/noisy50"
 # ]
 
-valid_extensions = ('.png', '.jpg', '.jpeg', '.bmp', '.tif', '.tiff', '.webp')
+def count_parameters(model, name="Model"):
+    total_params = sum(p.numel() for p in model.parameters())
+    trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    print(f"{name} - Total: {total_params/1e6:.2f} M, Trainable: {trainable_params/1e6:.2f} M")
+    return total_params, trainable_params
 
+count_parameters(pipe.unet, "UNet")
+count_parameters(pipe.vae, "VAE")
+count_parameters(pipe.text_encoder, "TextEncoder")
+# 如果有 text_encoder_2：
+if hasattr(pipe, "text_encoder_2"):
+    count_parameters(pipe.text_encoder_2, "TextEncoder 2")
+
+
+valid_extensions = ('.png', '.jpg', '.jpeg', '.bmp', '.tif', '.tiff', '.webp')
 for input_dir, json_dir, save_dir in zip(input_dirs, json_dirs, save_dirs):
     print(f"Processing: {input_dir}")
     os.makedirs(save_dir, exist_ok=True)

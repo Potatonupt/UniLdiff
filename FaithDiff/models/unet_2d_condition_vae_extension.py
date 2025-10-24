@@ -13,7 +13,7 @@
 # limitations under the License.
 import os
 from dataclasses import dataclass
-from typing import Any, Dict, Optional, Tuple, Union
+from typing import Any, Dict, Optional, Tuple, Union, List
 import torchvision.transforms.functional as TF
 import torch
 import torch.nn as nn
@@ -30,6 +30,8 @@ from diffusers.utils import is_torch_version
 from torchvision.utils import save_image
 
 from FaithDiff.models.dit_block import MLPEmbedder, DiTBlock
+from FaithDiff.models.moe import DecoderResidualGroup, DecoderBlock, FFTAttention, FrequencyEmbedding, \
+    EncoderResidualGroup
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
@@ -389,6 +391,12 @@ class UNet2DConditionModel(OriginalUNet2DConditionModel, ConfigMixin, UNet2DCond
         self.agg_net = None
         self.spatial_ch_projs = None
 
+        self.decoder_moe_blocks = None
+        self.moelatent = None
+        self.moefreq_embed = None
+
+        self.use_moe = False
+
     def init_vae_encoder(self, dtype):
         self.denoise_encoder = Encoder()
         if dtype is not None:
@@ -406,6 +414,30 @@ class UNet2DConditionModel(OriginalUNet2DConditionModel, ConfigMixin, UNet2DCond
             num_trans_channel = 640
 
         self.spatial_ch_projs = zero_module(nn.Linear(num_trans_channel, num_proj_channel))
+
+        if self.use_moe:
+            self.moelatent = EncoderResidualGroup(
+                dim=self.config.block_out_channels[-1],
+                num_blocks=3,
+                num_heads=4,
+                ffn_expansion=4,
+                LayerNorm_type="WithBias", bias=True, )
+
+            self.moefreq_embed = FrequencyEmbedding(self.config.block_out_channels[-1])
+            self.decoder_moe_blocks = nn.ModuleList()
+            for i in range(len(self.config.up_block_types)):
+                dim = self.config.block_out_channels[-(i + 1)]  # 注意up block是反着的
+
+                self.decoder_moe_blocks.append(
+                    DecoderBlock(
+                        dim=dim, num_heads=4, ffn_expansion_factor=4, bias=False, LayerNorm_type="WithBias",
+                        expert_layer=FFTAttention, rank=2, num_experts=4, top_k=1,
+                        stage_depth=1, freq_dim=1280, complexity_scale="max",
+                        depth_type="lin", rank_type="constant", with_complexity=False
+                    )
+                )
+
+
     def init_ControlNetConditioningEmbedding(self, channel=512):
         self.condition_embedding = ControlNetConditioningEmbedding(320, channel)
     def init_extra_weights(self):
@@ -465,7 +497,10 @@ class UNet2DConditionModel(OriginalUNet2DConditionModel, ConfigMixin, UNet2DCond
             'information_transformer_layers': {},
             'condition_embedding': {},
             'agg_net': {},
-            'spatial_ch_projs': {}
+            'spatial_ch_projs': {},
+            'moelatent': {},
+            'moefreq_embed': {},
+            'decoder_moe_blocks': {}
         }
 
         for key, value in state_dict.items():
@@ -482,6 +517,12 @@ class UNet2DConditionModel(OriginalUNet2DConditionModel, ConfigMixin, UNet2DCond
                 additional_dicts['agg_net'][key[len('agg_net.'):]] = value
             elif key.startswith('spatial_ch_projs.'):
                 additional_dicts['spatial_ch_projs'][key[len('spatial_ch_projs.'):]] = value
+            elif key.startswith('moelatent.'):
+                additional_dicts['moelatent'][key[len('moelatent.'):]] = value
+            elif key.startswith('moefreq_embed.'):
+                additional_dicts['moefreq_embed'][key[len('moefreq_embed.'):]] = value
+            elif key.startswith('decoder_moe_blocks.'):
+                additional_dicts['decoder_moe_blocks'][key[len('decoder_moe_blocks.'):]] = value
             else:
                 core_dict[key] = value
 
@@ -618,6 +659,7 @@ class UNet2DConditionModel(OriginalUNet2DConditionModel, ConfigMixin, UNet2DCond
             scale_lora_layers(self, lora_scale)
 
         is_controlnet = mid_block_additional_residual is not None and down_block_additional_residuals is not None
+        # print(is_controlnet)
         is_adapter = down_intrablock_additional_residuals is not None
         if not is_adapter and mid_block_additional_residual is None and down_block_additional_residuals is not None:
             deprecate(
@@ -681,6 +723,7 @@ class UNet2DConditionModel(OriginalUNet2DConditionModel, ConfigMixin, UNet2DCond
             sample = sample + mid_block_additional_residual
 
         # 5. up
+        moe_losses = []
         for i, upsample_block in enumerate(self.up_blocks):
             is_final_block = i == len(self.up_blocks) - 1
             res_samples = down_block_res_samples[-len(upsample_block.resnets):]
@@ -705,7 +748,6 @@ class UNet2DConditionModel(OriginalUNet2DConditionModel, ConfigMixin, UNet2DCond
                     res_hidden_states_tuple=res_samples,
                     upsample_size=upsample_size,
                 )
-            # print(sample.shape)
 
         # 6. post-process
         if self.conv_norm_out:

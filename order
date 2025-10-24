@@ -2,6 +2,7 @@ CUDA_VISIBLE_DEVICES=0 python test_generate_caption.py --img_dir='/data/czh/data
 
 CUDA_VISIBLE_DEVICES=0 python test_generate_caption.py --img_dir='/data/czh/data/train/allinone/test_llava' --save_dir=./json/test_llava
 
+CUDA_VISIBLE_DEVICES=7 python test_generate_caption.py --img_dir='/data/czh/data/train/CDD11_train' --save_dir=./json/CDD11_train
 
 CUDA_VISIBLE_DEVICES=0,1 python test.py --img_dir='/data/czh/data/test/low-light/LQ' --save_dir=./save/low-light_4kinds_epech_6000/ --upscale=1 --guidance_scale=5 --num_inference_steps=20 --load_8bit_llava
 

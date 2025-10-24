@@ -97,7 +97,7 @@ args = parser.parse_args()
 
 
 class FusionDataset(Dataset):
-    def __init__(self, lq_dirs, output_dirs, gt_dirs, patch_size=128, train=True, exts=["png", "jpg", "jpeg", "bmp"]):
+    def __init__(self, lq_dirs, output_dirs, gt_dirs, patch_size=128, train=True, exts=["png", "bmp", "jpeg", "jpg"]):
         """
         lq_dirs, output_dirs, gt_dirs: List of directories.
         Each list should have the same length (e.g., 5 or more).
@@ -108,15 +108,52 @@ class FusionDataset(Dataset):
         self.output_paths = []
         self.gt_paths = []
 
-        # 遍历每组路径，将所有扩展名符合的图像加入列表
-        for lq_dir, out_dir, gt_dir in zip(lq_dirs, output_dirs, gt_dirs):
-            for ext in exts:
-                self.lq_paths.extend(sorted(glob.glob(os.path.join(lq_dir, f"*.{ext}"))))
-                self.output_paths.extend(sorted(glob.glob(os.path.join(out_dir, f"*.{ext}"))))
-                self.gt_paths.extend(sorted(glob.glob(os.path.join(gt_dir, f"*.{ext}"))))
+        # 标准化扩展名为小写 .xxx 格式
+        image_exts = [f".{e.lower()}" for e in exts]
 
+        def normalize_name(name):
+            # 自动移除常见前缀
+            for prefix in ['no']:
+                if name.lower().startswith(prefix):
+                    return name[len(prefix):]
+            return name
+        def collect_name2path(folder):
+            files = glob.glob(os.path.join(folder, "*"))
+            name2path = {}
+            for f in files:
+                ext = os.path.splitext(f)[-1].lower()
+                if ext in image_exts:
+                    basename = os.path.splitext(os.path.basename(f))[0]
+                    norm_name = normalize_name(basename)
+                    name2path[norm_name] = f
+            return name2path
+
+        for lq_dir, out_dir, gt_dir in zip(lq_dirs, output_dirs, gt_dirs):
+            lq_dict = collect_name2path(lq_dir)
+            out_dict = collect_name2path(out_dir)
+            gt_dict = collect_name2path(gt_dir)
+
+            # 所有文件名（不含扩展）
+            all_names = set(lq_dict.keys()) | set(out_dict.keys()) | set(gt_dict.keys())
+            common_names = sorted(set(lq_dict.keys()) & set(out_dict.keys()) & set(gt_dict.keys()))
+
+            # ✅ 调试：打印缺失的样本及缺在哪一边
+            for name in sorted(all_names - set(common_names)):
+                lq_ok = name in lq_dict
+                out_ok = name in out_dict
+                gt_ok = name in gt_dict
+                print(f"[Missing Triplet] {name}: LQ={lq_ok}, OUT={out_ok}, GT={gt_ok}")
+
+            # 添加匹配成功的路径
+            self.lq_paths.extend([lq_dict[name] for name in common_names])
+            self.output_paths.extend([out_dict[name] for name in common_names])
+            self.gt_paths.extend([gt_dict[name] for name in common_names])
+
+        # 检查
         assert len(self.lq_paths) == len(self.output_paths) == len(self.gt_paths), \
-            "Number of lq, output, and gt images must match."
+            f"Mismatch in lengths: {len(self.lq_paths)}, {len(self.output_paths)}, {len(self.gt_paths)}"
+
+        print(f"✅ Total matched image triplets: {len(self.lq_paths)}")
 
         self.train = train
         self.patch_size = patch_size
@@ -165,33 +202,33 @@ if __name__ == '__main__':
     dataset = FusionDataset(
         lq_dirs=
         [
-            "/data/czh/data/test/low-light/LQ",
-            "/data/czh/data/test/rainy1/LQ",
-            "/data/czh/data/test/motion-blurry/LQ",
-            "/data/czh/data/test/noisy50/LQ",
-            "/data/czh/data/test/SOTS/LQ"
+            "/data/czh/data/train/allinone/low-light/LQ",
+            "/data/czh/data/train/allinone/Rain100L/LQ",
+            "/data/czh/data/train/allinone/motion-blurry/LQ",
+            "/data/czh/data/train/allinone/BSDWED25/LQ",
+            "/data/czh/data/train/allinone/OTS/LQ"
         ],
         output_dirs=
         [
-            '/data/czh/code/faithdiff/save/epoch40000/low-light',
-            '/data/czh/code/faithdiff/save/epoch40000/rain100l',
-            '/data/czh/code/faithdiff/save/epoch40000/motion-blurry',
-            '/data/czh/code/faithdiff/save/epoch40000/noisy50',
-            '/data/czh/code/faithdiff/save/epoch40000/SOTS'
+            "/data/czh/code/faithdiff/save/fornaf/low-light",
+            "/data/czh/code/faithdiff/save/fornaf/rain100l",
+            "/data/czh/code/faithdiff/save/fornaf/motion-blurry",
+            "/data/czh/code/faithdiff/save/fornaf/noisy50",
+            "/data/czh/code/faithdiff/save/fornaf/SOTS"
         ],
         gt_dirs=
         [
-            '/data/czh/data/test/low-light/GT',
-            '/data/czh/data/test/rainy1/GT',
-            '/data/czh/data/test/motion-blurry/GT',
-            '/data/czh/data/test/noisy50/GT',
-            '/data/czh/data/test/SOTS/GT'
-        ]
+            "/data/czh/data/train/allinone/low-light/GT",
+            "/data/czh/data/train/allinone/Rain100L/GT",
+            "/data/czh/data/train/allinone/motion-blurry/GT",
+            "/data/czh/data/train/allinone/BSDWED25/GT",
+            "/data/czh/data/train/allinone/OTS/GT"
+        ],
     )
 
     dataloader = DataLoader(
         dataset,
-        batch_size=8,
+        batch_size=64,
         shuffle=True,
         num_workers=4,
         pin_memory=True
@@ -246,23 +283,23 @@ if __name__ == '__main__':
                 print(f"Epoch [{epoch + 1}/{num_epochs}] | Batch [{batch_idx + 1}] | "
                       f"L1: {loss_l1.item():.4f} | SSIM: {loss_ssim.item():.4f} | LPIPS: {loss_lpips.item():.4f} | Total: {total_loss.item():.4f}")
 
-            # 每 save_interval 个 batch 保存拼接图像
-            if batch_idx % save_interval == 0:
-                batch_save_dir = os.path.join(image_save_dir, f"epoch_{epoch + 1}")
-                os.makedirs(batch_save_dir, exist_ok=True)
-
-                # 拼接图像
-                lq_grid = make_grid(lq.cpu(), nrow=lq.size(0), normalize=True, scale_each=True)
-                output_grid = make_grid(output_img.cpu(), nrow=output_img.size(0), normalize=True, scale_each=True)
-                pred_grid = make_grid(pred.cpu(), nrow=pred.size(0), normalize=True, scale_each=True)
-                gt_grid = make_grid(gt.cpu(), nrow=gt.size(0), normalize=True, scale_each=True)
-
-                combined_grid = torch.cat((lq_grid, output_grid, pred_grid, gt_grid), dim=1)
-
-                # 保存拼接好的大图
-                save_image(combined_grid, os.path.join(batch_save_dir, f"batch_{batch_idx}.png"))
-
-                print(f"Saved batch {batch_idx} images in {batch_save_dir}")
+            # # 每 save_interval 个 batch 保存拼接图像
+            # if batch_idx % save_interval == 0:
+            #     batch_save_dir = os.path.join(image_save_dir, f"epoch_{epoch + 1}")
+            #     os.makedirs(batch_save_dir, exist_ok=True)
+            #
+            #     # 拼接图像
+            #     lq_grid = make_grid(lq.cpu(), nrow=lq.size(0), normalize=True, scale_each=True)
+            #     output_grid = make_grid(output_img.cpu(), nrow=output_img.size(0), normalize=True, scale_each=True)
+            #     pred_grid = make_grid(pred.cpu(), nrow=pred.size(0), normalize=True, scale_each=True)
+            #     gt_grid = make_grid(gt.cpu(), nrow=gt.size(0), normalize=True, scale_each=True)
+            #
+            #     combined_grid = torch.cat((lq_grid, output_grid, pred_grid, gt_grid), dim=1)
+            #
+            #     # 保存拼接好的大图
+            #     save_image(combined_grid, os.path.join(batch_save_dir, f"batch_{batch_idx}.png"))
+            #
+            #     print(f"Saved batch {batch_idx} images in {batch_save_dir}")
 
         # 计算 epoch 平均损失
         avg_loss = epoch_loss / len(dataloader)
@@ -275,7 +312,7 @@ if __name__ == '__main__':
             print(f"Saved new best model with loss: {best_loss:.4f}")
 
         # 仅在 epoch 为 100 的倍数时保存模型
-        if (epoch + 1) % 100 == 0:
+        if (epoch + 1) % 10 == 0:
             torch.save(model.state_dict(), os.path.join(model_save_dir, f"epoch_{epoch + 1}.pth"))
             print(f"Saved model at epoch {epoch + 1}")
 

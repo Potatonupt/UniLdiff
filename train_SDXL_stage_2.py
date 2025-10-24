@@ -648,7 +648,7 @@ def main():
     unet.denoise_encoder.load_state_dict(denoise_encoder.state_dict())
     del denoise_encoder
 
-    unet.load_state_dict(torch.load('/data/czh/code/faithdiff/train_FaithDiff_stage_1_offline/checkpoint-5000/pretrain.bin'), strict=True)
+    unet.load_state_dict(torch.load('/data/czh/code/faithdiff/train_FaithDiff_stage_1_offline/checkpoint-6000/pretrain.bin'), strict=True)
     unet.train()
 
     vae.requires_grad_(False)
@@ -728,8 +728,17 @@ def main():
         {'params': unet_params_to_opt, 'lr': args.learning_rate, 'weight_decay': args.adam_weight_decay,
          'betas': (args.adam_beta1, args.adam_beta2), 'eps': args.adam_epsilon}]
     optimizer = torch.optim.AdamW(optimizer_grouped_parameters)
-    print(len(optimizer.param_groups))
 
+    def print_trainable_params(optimizer):
+        total_params = 0
+        for i, group in enumerate(optimizer.param_groups):
+            group_params = sum(p.numel() for p in group['params'] if p.requires_grad)
+            total_params += group_params
+            print(f"[Group {i}] Trainable Parameters: {group_params:,} | LR: {group.get('lr')}")
+        print(f"\n[Total] All Trainable Parameters: {total_params:,}")
+
+    # 使用：
+    print_trainable_params(optimizer)
     def collate_fn(data):
         lq_images = torch.stack([example["lq_image"] for example in data])
         images = torch.stack([example["image"] for example in data])
@@ -750,36 +759,83 @@ def main():
             "target_size": target_size,
         }
 
-    dehazing_file_path = ['/data/czh/data/train/allinone/OTS/GT']
-    lq_dehazing_file_path = ['/data/czh/data/train/allinone/OTS/LQ']
-    dehazing_json_file_path = ['./json/OTS']
+    # dehazing_file_path = ['/data/czh/data/train/allinone/OTS/GT']
+    # lq_dehazing_file_path = ['/data/czh/data/train/allinone/OTS/LQ']
+    # dehazing_json_file_path = ['./json/OTS']
+    #
+    # deraining_file_path = ['/data/czh/data/train/allinone/Rain100L/GT','/data/czh/data/test/rainy1/GT']
+    # lq_deraining_file_path = ['/data/czh/data/train/allinone/Rain100L/LQ','/data/czh/data/test/rainy1/LQ']
+    # deraining_json_file_path = ['./json/rain100l','./json_test/rain100l']
+    #
+    # denoising_file_path = ['/data/czh/data/train/allinone/BSDWED15/GT', '/data/czh/data/train/allinone/BSDWED25/GT',
+    #                        '/data/czh/data/train/allinone/BSDWED50/GT']
+    # lq_denoising_file_path = ['/data/czh/data/train/allinone/BSDWED15/LQ', '/data/czh/data/train/allinone/BSDWED25/LQ',
+    #                           '/data/czh/data/train/allinone/BSDWED50/LQ']
+    # denoising_json_file_path = ['./json/noise', './json/noise', './json/noise']
+    #
+    # deblurring_file_path = ['/data/czh/data/train/allinone/motion-blurry/GT']
+    # lq_deblurring_file_path = ['/data/czh/data/train/allinone/motion-blurry/LQ']
+    # deblurring_json_file_path = ['./json/motion-blurry']
+    #
+    # low_light_file_path = ['/data/czh/data/train/allinone/low-light/GT/']
+    # lq_low_light_file_path = ['/data/czh/data/train/allinone/low-light/LQ/']
+    # low_light_json_file_path = ['./json/low-light']
+    #
+    # yml_kernel = './train_kernel.yml'
+    #
+    # train_dataset = LocalImageDataset(
+    #     dehazing_file=[dehazing_file_path, lq_dehazing_file_path, dehazing_json_file_path],
+    #     deraining_file=[deraining_file_path, lq_deraining_file_path, deraining_json_file_path],
+    #     denoising_file=[denoising_file_path, lq_denoising_file_path, denoising_json_file_path],
+    #     deblurring_file=[deblurring_file_path, lq_deblurring_file_path, deblurring_json_file_path],
+    #     low_light_file=[low_light_file_path, lq_low_light_file_path, low_light_json_file_path],
+    #     yml_kernel=yml_kernel, image_size=args.resolution, tokenizer=tokenizer,
+    #     tokenizer_2=tokenizer_2, t_drop_rate=0.2)
 
-    deraining_file_path = ['/data/czh/data/train/allinone/Rain100L/GT']
-    lq_deraining_file_path = ['/data/czh/data/train/allinone/Rain100L/LQ']
-    deraining_json_file_path = ['./json/rain100l']
+    dehazing_file_path = ["/data/czh/data/train/CDD11_train/clear",
+                          "/data/czh/data/train/CDD11_train/clear",
+                          "/data/czh/data/train/CDD11_train/clear",
+                          "/data/czh/data/train/CDD11_train/clear",
+                          "/data/czh/data/train/CDD11_train/clear",
+                          "/data/czh/data/train/CDD11_train/clear",
+                          "/data/czh/data/train/CDD11_train/clear",
+                          "/data/czh/data/train/CDD11_train/clear",
+                          "/data/czh/data/train/CDD11_train/clear",
+                          "/data/czh/data/train/CDD11_train/clear",
+                          "/data/czh/data/train/CDD11_train/clear", ]
 
-    denoising_file_path = ['/data/czh/data/train/allinone/BSDWED15/GT', '/data/czh/data/train/allinone/BSDWED25/GT',
-                           '/data/czh/data/train/allinone/BSDWED50/GT']
-    lq_denoising_file_path = ['/data/czh/data/train/allinone/BSDWED15/LQ', '/data/czh/data/train/allinone/BSDWED25/LQ',
-                              '/data/czh/data/train/allinone/BSDWED50/LQ']
-    denoising_json_file_path = ['./json/noise', './json/noise', './json/noise']
+    lq_dehazing_file_path = ['/data/czh/data/train/CDD11_train/haze',
+                             "/data/czh/data/train/CDD11_train/haze_rain",
+                             "/data/czh/data/train/CDD11_train/haze_snow",
+                             "/data/czh/data/train/CDD11_train/low",
+                             "/data/czh/data/train/CDD11_train/low_haze",
+                             "/data/czh/data/train/CDD11_train/low_haze_rain",
+                             "/data/czh/data/train/CDD11_train/low_haze_snow",
+                             "/data/czh/data/train/CDD11_train/low_rain",
+                             "/data/czh/data/train/CDD11_train/low_snow",
+                             "/data/czh/data/train/CDD11_train/rain",
+                             "/data/czh/data/train/CDD11_train/snow", ]
 
-    deblurring_file_path = ['/data/czh/data/train/allinone/motion-blurry/GT']
-    lq_deblurring_file_path = ['/data/czh/data/train/allinone/motion-blurry/LQ']
-    deblurring_json_file_path = ['./json/motion-blurry']
-
-    low_light_file_path = ['/data/czh/data/train/allinone/low-light/GT/']
-    lq_low_light_file_path = ['/data/czh/data/train/allinone/low-light/LQ/']
-    low_light_json_file_path = ['./json/low-light']
+    dehazing_json_file_path = ['./json/CDD11_train',
+                               "./json/CDD11_train",
+                               "./json/CDD11_train",
+                               "./json/CDD11_train",
+                               "./json/CDD11_train",
+                               "./json/CDD11_train",
+                               "./json/CDD11_train",
+                               "./json/CDD11_train",
+                               "./json/CDD11_train",
+                               "./json/CDD11_train",
+                               "./json/CDD11_train", ]
 
     yml_kernel = './train_kernel.yml'
 
     train_dataset = LocalImageDataset(
         dehazing_file=[dehazing_file_path, lq_dehazing_file_path, dehazing_json_file_path],
-        deraining_file=[deraining_file_path, lq_deraining_file_path, deraining_json_file_path],
-        denoising_file=[denoising_file_path, lq_denoising_file_path, denoising_json_file_path],
-        deblurring_file=[deblurring_file_path, lq_deblurring_file_path, deblurring_json_file_path],
-        low_light_file=[low_light_file_path, lq_low_light_file_path, low_light_json_file_path],
+        # deraining_file=[deraining_file_path, lq_deraining_file_path, deraining_json_file_path],
+        # denoising_file=[denoising_file_path, lq_denoising_file_path, denoising_json_file_path],
+        # deblurring_file=[deblurring_file_path, lq_deblurring_file_path, deblurring_json_file_path],
+        # low_light_file=[low_light_file_path, lq_low_light_file_path, low_light_json_file_path],
         yml_kernel=yml_kernel, image_size=args.resolution, tokenizer=tokenizer,
         tokenizer_2=tokenizer_2, t_drop_rate=0.2)
 
@@ -967,10 +1023,18 @@ def main():
 
                 lq_img = batch["lq_images"].to(accelerator.device, dtype=weight_dtype)
                 fake_hq_before_quant = unet.denoise_encoder(lq_img)
-                noise_pred = unet(noisy_latents, timesteps, text_embeds, added_cond_kwargs=unet_added_cond_kwargs,
-                                  input_embedding=fake_hq_before_quant).sample
+                output = unet(noisy_latents, timesteps, text_embeds, added_cond_kwargs=unet_added_cond_kwargs,
+                                  input_embedding=fake_hq_before_quant)
+                noise_pred = output.sample
 
                 diffusion_loss = F.l1_loss(noise_pred.float(), noise.float(), reduction="mean")
+                # # 只有在使用 MoE 时才计算 MoE loss
+                # if getattr(unet, "use_moe", False) and output.moe_losses is not None:
+                #     moe_loss = output.moe_losses
+                #     moe_total_loss = sum(moe_loss)
+                #     loss = diffusion_loss + 0.001 * moe_total_loss
+                # else:
+                #
                 loss = diffusion_loss
 
                 # Gather the losses across all processes for logging (if we use distributed training).

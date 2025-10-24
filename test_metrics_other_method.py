@@ -84,7 +84,7 @@ def main():
         nargs="+",
         default=
         [
-            '/data/czh/code/faithdiff/save/tmp/rain100l',
+            '/data/czh/code/faithdiff/save/nafnet/cdd/haze',
             # '/data/czh/code/faithdiff/save/epoch16000/rain100l',
             # '/data/czh/code/faithdiff/save/epoch16000/motion-blurry',
             # '/data/czh/code/faithdiff/save/epoch16000/noisy50',
@@ -96,7 +96,7 @@ def main():
     parser.add_argument(
         "--gt_imgs",
         nargs="+",
-        default=['/data/czh/data/test/rainy1/GT',
+        default=['/data/czh/data/test/CDD11_test/clear',
                  # '/data/czh/data/test/rainy1/GT',
                  # '/data/czh/data/test/motion-blurry/GT',
                  # '/data/czh/data/test/noisy50/GT',
@@ -142,8 +142,8 @@ def main():
     # Initialize IQA metrics excluding FID
     logger.info("Initializing IQA metrics...")
     iqa_metrics = {
-        'PSNR': pyiqa.create_metric('psnr', test_y_channel=True, color_space='ycbcr').to(device),
-        'SSIM': pyiqa.create_metric('ssim', test_y_channel=True, color_space='ycbcr').to(device),
+        'PSNR': pyiqa.create_metric('psnr', test_y_channel=False, color_space='rgb').to(device),
+        'SSIM': pyiqa.create_metric('ssim', test_y_channel=False, color_space='rgb').to(device),
         'LPIPS': pyiqa.create_metric('lpips', device=device),
         'DISTS': pyiqa.create_metric('dists', device=device),
         'CLIPIQA': pyiqa.create_metric('clipiqa', device=device),
@@ -190,8 +190,8 @@ def main():
     # Iterate over each directory
     for dir_idx, init_dir in enumerate(args.inp_imgs):
         gt_dir = args.gt_imgs[dir_idx]
-        img_gt_list = sorted(glob.glob(os.path.join(gt_dir, '*.png')))
-        img_sr_list = sorted(glob.glob(os.path.join(init_dir, '*.png')))
+        img_gt_list = sorted(glob.glob(os.path.join(gt_dir, '*.[pj]*[np]*[g]*')))
+        img_sr_list = sorted(glob.glob(os.path.join(init_dir, '*.[pj]*[np]*[g]*')))
         dir_name = init_imgs_names[dir_idx]
 
         # Initialize accumulators for average metrics

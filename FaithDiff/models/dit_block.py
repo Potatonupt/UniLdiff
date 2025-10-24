@@ -400,3 +400,47 @@ class DiTBlock(nn.Module):
         assert not torch.isinf(latent).any(), "latent has Inf"
 
         return latent
+
+
+def count_parameters(model):
+    total_params = sum(p.numel() for p in model.parameters())
+    trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    print(f"Total parameters: {total_params:,}")
+    print(f"Trainable parameters: {trainable_params:,}")
+    return total_params, trainable_params
+
+def main():
+    # 输入参数设置
+    B, C, H, W = 1, 320, 16, 16  # Batch size, Channels, Height, Width
+    T = torch.tensor([10.0])  # 假设时间步为10（可以是 tensor）
+
+    # 构造模型
+    model = DiTBlock(
+        in_channels=320,
+        context_in_dim=320,
+        hidden_size=1024,
+        mlp_ratio=4.0,
+        num_heads=16,
+        depth=2,
+        depth_single_blocks=1,
+        axes_dim=[64],
+        theta=10000,
+        qkv_bias=True,
+        time_factor=1000,
+        guidance_embed=False
+    )
+
+    # 打印参数数量
+    count_parameters(model)
+
+    # 模拟输入
+    x = torch.randn(B, C, H, W)
+    context = torch.randn(B, C, H, W)
+
+    # 模型前向测试（检查是否能运行）
+    with torch.no_grad():
+        out = model(x, T, context)
+    print(f"Output shape: {out.shape}")
+
+if __name__ == "__main__":
+    main()

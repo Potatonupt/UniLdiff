@@ -1269,6 +1269,7 @@ class FaithDiffStableDiffusionXLPipeline(
             latents,
         )
         if start_point == 'lr':
+            print("lr")
             latents_condition_image = self.vae.encode(lr_img*2-1).latent_dist.sample()
             latents_condition_image = latents_condition_image * self.vae.config.scaling_factor
             start_steps_tensor = torch.randint(999, 999+1, (latents.shape[0],), device=latents.device)

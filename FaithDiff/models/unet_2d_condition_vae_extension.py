@@ -29,8 +29,8 @@ from collections import OrderedDict
 from diffusers.utils import is_torch_version
 from torchvision.utils import save_image
 
-from FaithDiff.models.dit_block import MLPEmbedder, DiTBlock
-from FaithDiff.models.moe import DecoderResidualGroup, DecoderBlock, FFTAttention, FrequencyEmbedding, \
+from FaithDiff.models.DAFF import MLPEmbedder, DiTBlock
+from FaithDiff.models.DAEM import DecoderResidualGroup, DecoderBlock, FFTAttention, FrequencyEmbedding, \
     EncoderResidualGroup
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name

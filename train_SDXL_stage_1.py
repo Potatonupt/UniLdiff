@@ -738,8 +738,8 @@ def main():
     # lq_dehazing_file_path = ['/data/czh/data/train/allinone/OTS/LQ']
     # dehazing_json_file_path = ['./json/OTS']
     #
-    # deraining_file_path = ['/data/czh/data/train/allinone/Rain100L/GT','/data/czh/data/test/rainy1/GT']
-    # lq_deraining_file_path = ['/data/czh/data/train/allinone/Rain100L/LQ','/data/czh/data/test/rainy1/LQ']
+    # deraining_file_path = ['/data/czh/data/train/allinone/Rain100L/GT']
+    # lq_deraining_file_path = ['/data/czh/data/train/allinone/Rain100L/LQ']
     # deraining_json_file_path = ['./json/rain100l','./json_test/rain100l']
     #
     # denoising_file_path = ['/data/czh/data/train/allinone/BSDWED15/GT', '/data/czh/data/train/allinone/BSDWED25/GT',

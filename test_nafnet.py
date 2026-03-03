@@ -97,8 +97,8 @@ def check_image_size(x, padder_size=8):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--test_in_path', type=str, default='/data2/czh/data/test/TOLED_test/TOLED_GT')
-    parser.add_argument('--test_gt_path', type=str, default='/data2/czh/code/faithdiff/save/toled')
+    parser.add_argument('--test_in_path', type=str, default='LQ')
+    parser.add_argument('--test_gt_path', type=str, default='RS')
     parser.add_argument('--model_path', type=str, default='/data2/czh/code/faithdiff/nafmodel/epoch_200.pth')
     parser.add_argument('--save_path', type=str, default='/data2/czh/code/faithdiff/save/nafnet/toled')
     args = parser.parse_args()

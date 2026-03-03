@@ -2,7 +2,7 @@ import sys
 import os
 
 # 添加本地 NAFNet 的 basicsr 路径到 sys.path 最前面
-nafnet_root = '/data/czh/code/faithdiff/NAFNet'
+nafnet_root = '/data2/czh/code/faithdiff/NAFNet'
 sys.path.insert(0, os.path.join(nafnet_root))  # 添加根目录
 sys.path.insert(0, os.path.join(nafnet_root, 'basicsr'))  # 添加 basicsr 路径
 
@@ -202,33 +202,33 @@ if __name__ == '__main__':
     dataset = FusionDataset(
         lq_dirs=
         [
-            "/data/czh/data/train/allinone/low-light/LQ",
-            "/data/czh/data/train/allinone/Rain100L/LQ",
-            "/data/czh/data/train/allinone/motion-blurry/LQ",
-            "/data/czh/data/train/allinone/BSDWED25/LQ",
-            "/data/czh/data/train/allinone/OTS/LQ"
+            "/data2/czh/data/train/allinone/low-light/LQ",
+            "/data2/czh/data/train/allinone/Rain100L/LQ",
+            "/data2/czh/data/train/allinone/motion-blurry/LQ",
+            "/data2/czh/data/train/allinone/BSDWED25/LQ",
+            "/data2/czh/data/train/allinone/OTS/LQ"
         ],
         output_dirs=
         [
-            "/data/czh/code/faithdiff/save/fornaf/low-light",
-            "/data/czh/code/faithdiff/save/fornaf/rain100l",
-            "/data/czh/code/faithdiff/save/fornaf/motion-blurry",
-            "/data/czh/code/faithdiff/save/fornaf/noisy50",
-            "/data/czh/code/faithdiff/save/fornaf/SOTS"
+            "/data2/czh/code/faithdiff/save/fornaf/low-light",
+            "/data2/czh/code/faithdiff/save/fornaf/rain100l",
+            "/data2/czh/code/faithdiff/save/fornaf/motion-blurry",
+            "/data2/czh/code/faithdiff/save/fornaf/noisy50",
+            "/data2/czh/code/faithdiff/save/fornaf/SOTS"
         ],
         gt_dirs=
         [
-            "/data/czh/data/train/allinone/low-light/GT",
-            "/data/czh/data/train/allinone/Rain100L/GT",
-            "/data/czh/data/train/allinone/motion-blurry/GT",
-            "/data/czh/data/train/allinone/BSDWED25/GT",
-            "/data/czh/data/train/allinone/OTS/GT"
+            "/data2/czh/data/train/allinone/low-light/GT",
+            "/data2/czh/data/train/allinone/Rain100L/GT",
+            "/data2/czh/data/train/allinone/motion-blurry/GT",
+            "/data2/czh/data/train/allinone/BSDWED25/GT",
+            "/data2/czh/data/train/allinone/OTS/GT"
         ],
     )
 
     dataloader = DataLoader(
         dataset,
-        batch_size=64,
+        batch_size=2,
         shuffle=True,
         num_workers=4,
         pin_memory=True

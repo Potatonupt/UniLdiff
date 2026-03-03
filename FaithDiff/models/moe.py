@@ -15,7 +15,6 @@ from einops.layers.torch import Rearrange
 from torch.distributions.normal import Normal
 from fvcore.nn import FlopCountAnalysis, flop_count_table
 
-from NAFNet.basicsr.models.archs.arch_util import LayerNorm2d
 
 
 ##########################################################################
@@ -310,54 +309,70 @@ class CrossAttention(nn.Module):
 class FFTAttention(nn.Module):
     def __init__(self, dim: int, **kwargs):
         super(FFTAttention, self).__init__()
-
+        self.DW_Expand = 2
+        self.FFN_Expand = 2
+        self.drop_out_rate = 0.
+        self.kernel_size = kwargs['kernel_size']
         self.patch_size = kwargs["patch_size"]
 
-        self.q = nn.Conv2d(dim, dim, kernel_size=1, bias=False)
-        self.q_dwconv = nn.Conv2d(dim, dim, kernel_size=3, stride=1, padding=1, groups=dim)
-        self.kv = nn.Conv2d(dim, dim * 2, kernel_size=1, bias=False)
-        self.kv_dwconv = nn.Conv2d(dim * 2, dim * 2, kernel_size=7, stride=1, padding=7 // 2, groups=dim * 2)
-        self.norm = LayerNorm(dim, "WithBias")
-        self.proj_out = nn.Conv2d(dim, dim, kernel_size=1, padding=0)
+        dw_channel = dim * self.DW_Expand
+        self.conv1 = nn.Conv2d(in_channels=dim, out_channels=dw_channel, kernel_size=1, padding=0, stride=1, groups=1,
+                               bias=True)
+        self.conv2 = nn.Conv2d(in_channels=dw_channel, out_channels=dw_channel, kernel_size=self.kernel_size,
+                               padding=(self.kernel_size - 1) // 2, stride=1,
+                               groups=dw_channel,
+                               bias=True)
+        self.conv3 = nn.Conv2d(in_channels=dw_channel // 2, out_channels=dim, kernel_size=1, padding=0, stride=1,
+                               groups=1, bias=True)
 
-    def pad_and_rearrange(self, x):
-        b, c, h, w = x.shape
+        # Simplified Channel Attention
+        self.sca = nn.Sequential(
+            nn.AdaptiveAvgPool2d(1),
+            nn.Conv2d(in_channels=dw_channel // 2, out_channels=dw_channel // 2, kernel_size=1, padding=0, stride=1,
+                      groups=1, bias=True),
+        )
 
-        pad_h = (self.patch_size - (h % self.patch_size)) % self.patch_size
-        pad_w = (self.patch_size - (w % self.patch_size)) % self.patch_size
-        x = F.pad(x, (0, pad_w, 0, pad_h), mode='constant', value=0)
-        x = rearrange(x, 'b c (h p1) (w p2) -> b c h w p1 p2', p1=self.patch_size, p2=self.patch_size)
-        return x
+        # SimpleGate
+        self.sg = SimpleGate()
 
-    def rearrange_to_original(self, x, x_shape):
-        h, w = x_shape
-        x = rearrange(x, 'b c h w p1 p2 -> b c (h p1) (w p2)', p1=self.patch_size, p2=self.patch_size)
-        x = x[:, :, :h, :w]  # Slice out the original height and width
-        return x
+        ffn_channel = self.FFN_Expand * dim
+        self.conv4 = nn.Conv2d(in_channels=dim, out_channels=ffn_channel, kernel_size=1, padding=0, stride=1, groups=1,
+                               bias=True)
+        self.conv5 = nn.Conv2d(in_channels=ffn_channel // 2, out_channels=dim, kernel_size=1, padding=0, stride=1,
+                               groups=1, bias=True)
 
-    def forward(self, x):
-        b, c, h, w = x.shape
+        self.norm1 = LayerNorm2d(dim)
+        self.norm2 = LayerNorm2d(dim)
 
-        q = self.q_dwconv(self.q(x))
-        kv = self.kv_dwconv(self.kv(x))
-        k, v = kv.chunk(2, dim=1)
+        self.dropout1 = nn.Dropout(self.drop_out_rate) if self.drop_out_rate > 0. else nn.Identity()
+        self.dropout2 = nn.Dropout(self.drop_out_rate) if self.drop_out_rate > 0. else nn.Identity()
 
-        q = self.pad_and_rearrange(q)
-        k = self.pad_and_rearrange(k)
+        self.beta = nn.Parameter(torch.zeros((1, dim, 1, 1)), requires_grad=True)
+        self.gamma = nn.Parameter(torch.zeros((1, dim, 1, 1)), requires_grad=True)
 
-        q_fft = torch.fft.rfft2(q.float())
-        k_fft = torch.fft.rfft2(k.float())
-        out = q_fft * k_fft
-        out = torch.fft.irfft2(out, s=(self.patch_size, self.patch_size))
 
-        out = self.rearrange_to_original(out, (h, w))
+    def forward(self, inp):
+        x = inp
 
-        out = self.norm(out)
-        out = out * v
+        x = self.norm1(x)
 
-        out = out.to(x.dtype)
-        out = self.proj_out(out)
-        return out
+        x = self.conv1(x)
+        x = self.conv2(x)
+        x = self.sg(x)
+        x = x * self.sca(x)
+        x = self.conv3(x)
+
+        x = self.dropout1(x)
+
+        y = inp + x * self.beta
+
+        x = self.conv4(self.norm2(y))
+        x = self.sg(x)
+        x = self.conv5(x)
+
+        x = self.dropout2(x)
+
+        return y + x * self.gamma
 
 
 class SimpleGate(nn.Module):
@@ -365,27 +380,77 @@ class SimpleGate(nn.Module):
         x1, x2 = x.chunk(2, dim=1)
         return x1 * x2
 
-class NAFExpert(nn.Module):
-    def __init__(self, c, kernel_size=3, DW_Expand=2, FFN_Expand=2, drop_out_rate=0.):
-        super(NAFExpert, self).__init__()
+
+class LayerNorm2d(nn.Module):
+
+    def __init__(self, channels, eps=1e-6):
+        super(LayerNorm2d, self).__init__()
+        self.register_parameter('weight', nn.Parameter(torch.ones(channels)))
+        self.register_parameter('bias', nn.Parameter(torch.zeros(channels)))
+        self.eps = eps
+
+    def forward(self, x):
+        return LayerNormFunction.apply(x, self.weight, self.bias, self.eps)
+
+
+class LayerNormFunction(torch.autograd.Function):
+
+    @staticmethod
+    def forward(ctx, x, weight, bias, eps):
+        ctx.eps = eps
+        N, C, H, W = x.size()
+        mu = x.mean(1, keepdim=True)
+        var = (x - mu).pow(2).mean(1, keepdim=True)
+        y = (x - mu) / (var + eps).sqrt()
+        ctx.save_for_backward(y, var, weight)
+        y = weight.view(1, C, 1, 1) * y + bias.view(1, C, 1, 1)
+        return y
+
+    @staticmethod
+    def backward(ctx, grad_output):
+        eps = ctx.eps
+
+        N, C, H, W = grad_output.size()
+        y, var, weight = ctx.saved_variables
+        g = grad_output * weight.view(1, C, 1, 1)
+        mean_g = g.mean(dim=1, keepdim=True)
+
+        mean_gy = (g * y).mean(dim=1, keepdim=True)
+        gx = 1. / torch.sqrt(var + eps) * (g - y * mean_gy - mean_g)
+        return gx, (grad_output * y).sum(dim=3).sum(dim=2).sum(dim=0), grad_output.sum(dim=3).sum(dim=2).sum(
+            dim=0), None
+
+
+class NAFBlock(nn.Module):
+    def __init__(self, c, DW_Expand=2, FFN_Expand=2, drop_out_rate=0.):
+        super().__init__()
         dw_channel = c * DW_Expand
-        ffn_channel = c * FFN_Expand
+        self.conv1 = nn.Conv2d(in_channels=c, out_channels=dw_channel, kernel_size=1, padding=0, stride=1, groups=1,
+                               bias=True)
+        self.conv2 = nn.Conv2d(in_channels=dw_channel, out_channels=dw_channel, kernel_size=3, padding=1, stride=1,
+                               groups=dw_channel,
+                               bias=True)
+        self.conv3 = nn.Conv2d(in_channels=dw_channel // 2, out_channels=c, kernel_size=1, padding=0, stride=1,
+                               groups=1, bias=True)
+
+        # Simplified Channel Attention
+        self.sca = nn.Sequential(
+            nn.AdaptiveAvgPool2d(1),
+            nn.Conv2d(in_channels=dw_channel // 2, out_channels=dw_channel // 2, kernel_size=1, padding=0, stride=1,
+                      groups=1, bias=True),
+        )
+
+        # SimpleGate
+        self.sg = SimpleGate()
+
+        ffn_channel = FFN_Expand * c
+        self.conv4 = nn.Conv2d(in_channels=c, out_channels=ffn_channel, kernel_size=1, padding=0, stride=1, groups=1,
+                               bias=True)
+        self.conv5 = nn.Conv2d(in_channels=ffn_channel // 2, out_channels=c, kernel_size=1, padding=0, stride=1,
+                               groups=1, bias=True)
 
         self.norm1 = LayerNorm2d(c)
         self.norm2 = LayerNorm2d(c)
-
-        # Depthwise convolution with configurable kernel size
-        self.conv1 = nn.Conv2d(c, dw_channel, kernel_size=1, bias=True)
-        self.conv2 = nn.Conv2d(dw_channel, dw_channel, kernel_size=kernel_size, padding=kernel_size // 2, groups=dw_channel, bias=True)
-        self.sg = SimpleGate()
-        self.sca = nn.Sequential(
-            nn.AdaptiveAvgPool2d(1),
-            nn.Conv2d(dw_channel // 2, dw_channel // 2, kernel_size=1, bias=True)
-        )
-        self.conv3 = nn.Conv2d(dw_channel // 2, c, kernel_size=1, bias=True)
-
-        self.conv4 = nn.Conv2d(c, ffn_channel, kernel_size=1, bias=True)
-        self.conv5 = nn.Conv2d(ffn_channel // 2, c, kernel_size=1, bias=True)
 
         self.dropout1 = nn.Dropout(drop_out_rate) if drop_out_rate > 0. else nn.Identity()
         self.dropout2 = nn.Dropout(drop_out_rate) if drop_out_rate > 0. else nn.Identity()
@@ -393,22 +458,25 @@ class NAFExpert(nn.Module):
         self.beta = nn.Parameter(torch.zeros((1, c, 1, 1)), requires_grad=True)
         self.gamma = nn.Parameter(torch.zeros((1, c, 1, 1)), requires_grad=True)
 
-    def forward(self, x):
-        identity = x
+    def forward(self, inp):
+        x = inp
 
         x = self.norm1(x)
+
         x = self.conv1(x)
         x = self.conv2(x)
         x = self.sg(x)
         x = x * self.sca(x)
         x = self.conv3(x)
-        x = self.dropout1(x)
-        y = identity + x * self.beta
 
-        x = self.norm2(y)
-        x = self.conv4(x)
+        x = self.dropout1(x)
+
+        y = inp + x * self.beta
+
+        x = self.conv4(self.norm2(y))
         x = self.sg(x)
         x = self.conv5(x)
+
         x = self.dropout2(x)
 
         return y + x * self.gamma
@@ -807,144 +875,3 @@ class FrequencyEmbedding(nn.Module):
         x = self.mlp(x)
         return x
 
-
-##########################################################################
-##
-class MoCEIR(nn.Module):
-    def __init__(self,
-                 inp_channels=3,
-                 out_channels=3,
-                 dim=32,
-                 levels: int = 4,
-                 heads=[1, 1, 1, 1],
-                 num_blocks=[1, 1, 1, 3],
-                 num_dec_blocks=[1, 1, 1],
-                 ffn_expansion_factor=2,
-                 num_refinement_blocks=1,
-                 LayerNorm_type='WithBias',  ## Other option 'BiasFree'
-                 bias=False,
-                 rank=2,
-                 num_experts=4,
-                 depth_type="lin",
-                 stage_depth=[3, 2, 1],
-                 rank_type="constant",
-                 topk=1,
-                 expert_layer=FFTAttention,
-                 with_complexity=False,
-                 complexity_scale="max",
-                 ):
-        super(MoCEIR, self).__init__()
-
-        self.levels = levels
-        self.num_blocks = num_blocks
-        self.num_dec_blocks = num_dec_blocks
-        self.num_refinement_blocks = num_refinement_blocks
-
-        dims = [dim * 2 ** i for i in range(levels)]
-        ranks = [rank for i in range(levels - 1)]
-
-        # -- Patch Embedding
-        self.patch_embed = OverlapPatchEmbed(in_c=inp_channels, embed_dim=dim, bias=False)
-        self.freq_embed = FrequencyEmbedding(dims[-1])
-
-        # -- Encoder --
-        self.enc = nn.ModuleList([])
-        for i in range(levels - 1):
-            self.enc.append(nn.ModuleList([
-                EncoderResidualGroup(
-                    dim=dims[i],
-                    num_blocks=num_blocks[i],
-                    num_heads=heads[i],
-                    ffn_expansion=ffn_expansion_factor,
-                    LayerNorm_type=LayerNorm_type, bias=True, ),
-                Downsample(dim * 2 ** i)
-            ])
-            )
-
-        # -- Latent --
-        self.latent = EncoderResidualGroup(
-            dim=dims[-1],
-            num_blocks=num_blocks[-1],
-            num_heads=heads[-1],
-            ffn_expansion=ffn_expansion_factor,
-            LayerNorm_type=LayerNorm_type, bias=True, )
-
-        # -- Decoder --
-        dims = dims[::-1]
-        ranks = ranks[::-1]
-        heads = heads[::-1]
-        num_dec_blocks = num_dec_blocks[::-1]
-
-        self.dec = nn.ModuleList([])
-        for i in range(levels - 1):
-            self.dec.append(nn.ModuleList([
-                Upsample(dims[i]),
-                nn.Conv2d(dims[i], dims[i + 1], kernel_size=1, bias=bias),
-                DecoderResidualGroup(
-                    dim=dims[i + 1],
-                    num_blocks=num_dec_blocks[i],
-                    num_heads=heads[i + 1],
-                    ffn_expansion=ffn_expansion_factor,
-                    LayerNorm_type=LayerNorm_type, bias=bias, expert_layer=expert_layer, freq_dim=dims[0],
-                    with_complexity=with_complexity,
-                    rank=ranks[i], num_experts=num_experts, stage_depth=stage_depth[i], depth_type=depth_type,
-                    rank_type=rank_type, top_k=topk, complexity_scale=complexity_scale),
-            ])
-            )
-
-        # -- Refinement --
-        heads = heads[::-1]
-        self.refinement = EncoderResidualGroup(
-            dim=dim,
-            num_blocks=num_refinement_blocks,
-            num_heads=heads[0],
-            ffn_expansion=ffn_expansion_factor,
-            LayerNorm_type=LayerNorm_type, bias=True, )
-
-        self.output = nn.Conv2d(dim, out_channels, kernel_size=3, stride=1, padding=1, bias=bias)
-        self.total_loss = None
-
-    def forward(self, x, labels=None):
-
-        feats = self.patch_embed(x)
-
-        self.total_loss = 0
-        enc_feats = []
-        for i, (block, downsample) in enumerate(self.enc):
-            feats = block(feats)
-            enc_feats.append(feats)
-            feats = downsample(feats)
-
-        feats = self.latent(feats)
-        freq_emb = self.freq_embed(feats)
-
-        for i, (upsample, fusion, block) in enumerate(self.dec):
-            feats = upsample(feats)
-            feats = fusion(torch.cat([feats, enc_feats.pop()], dim=1))
-            feats = block(feats, freq_emb)
-            self.total_loss += block.loss
-
-        feats = self.refinement(feats)
-        x = self.output(feats) + x
-
-        self.total_loss /= sum(self.num_dec_blocks)
-        return x
-
-
-if __name__ == "__main__":
-    # test
-    model = MoCEIR(rank=2, num_blocks=[4, 6, 6, 8], num_dec_blocks=[2, 4, 4], levels=4, dim=48, num_refinement_blocks=4,
-                   with_complexity=True, complexity_scale="max", stage_depth=[1, 1, 1], depth_type="constant",
-                   rank_type="spread",
-                   num_experts=4, topk=1, expert_layer=FFTAttention).cuda()
-
-    x = torch.randn(1, 3, 224, 224).cuda()
-    _ = model(x)
-    print(model.total_loss)
-    # Memory usage
-    print('{:>16s} : {:<.3f} [M]'.format('Max Memery',
-                                         torch.cuda.max_memory_allocated(torch.cuda.current_device()) / 1024 ** 2))
-
-    # FLOPS and PARAMS
-    flops = FlopCountAnalysis(model, (x))
-    print(flop_count_table(flops))

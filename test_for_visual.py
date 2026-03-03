@@ -57,7 +57,7 @@ use_bsrnet = args.use_bsrnet
 
 # load FaithDiff FP16
 pipe = FaithDiff_pipeline(sdxl_path=SDXL_PATH, VAE_FP16_path=VAE_FP16_PATH,
-                          FaithDiff_path="/data2/czh/code/faithdiff/train_FaithDiff_stage_2_offline/base/checkpoint-16000/FaithDiff.bin",
+                          FaithDiff_path="/data2/czh/code/faithdiff/train_FaithDiff_stage_2_offline/base/checkpoint-40000/FaithDiff.bin",
                           use_fp8=use_fp8)
 pipe = pipe.to(Diffusion_device)
 
@@ -85,35 +85,32 @@ else:
 # # 定义五个路径集合
 input_dirs = [
     "/data2/czh/data/test/rainy1/LQ",
-    # "/data2/czh/data/test/low-light/LQ",
-    # "/data2/czh/data/test/SOTS/LQ",
-    # "/data2/czh/data/test/motion-blurry/LQ",
-    # "/data2/czh/data/test/noisy50/LQ",
-    # "/data2/czh/data/test/noisy25/LQ",
-    # "/data2/czh/data/test/noisy15/LQ"
-    # "/data2/czh/data/test/TOLED_test/TOLED_LQ"
+    "/data2/czh/data/test/low-light/LQ",
+    "/data2/czh/data/test/SOTS/LQ",
+    "/data2/czh/data/test/motion-blurry/LQ",
+    "/data2/czh/data/test/noisy50/LQ",
+    "/data2/czh/data/test/noisy25/LQ",
+    "/data2/czh/data/test/noisy15/LQ"
 ]
 
 json_dirs = [
     "./json_test/rain100l",
-    # "./json_test/low-light",
-    # "./json_test/SOTS",
-    # "./json_test/motion-blurry",
-    # "./json_test/noise",
-    # "./json_test/noise",
-    # "./json_test/noise"
-    # "./json_test/poled"
+    "./json_test/low-light",
+    "./json_test/SOTS",
+    "./json_test/motion-blurry",
+    "./json_test/noise",
+    "./json_test/noise",
+    "./json_test/noise"
 ]
 
 save_dirs = [
-    "./save/rebut3_rain/rain100l",
-    # "./save/tsne/low-light",
-    # "./save/tsne/SOTS",
-    # "./save/tsne/motion-blurry",
-    # "./save/tsne/noisy50",
-    # "./save/tsne/noisy25",
-    # "./save/tsne/noisy15"
-    # "./save/toled"
+    "./save/tsne/rain100l",
+    "./save/tsne/low-light",
+    "./save/tsne/SOTS",
+    "./save/tsne/motion-blurry",
+    "./save/tsne/noisy50",
+    "./save/tsne/noisy25",
+    "./save/tsne/noisy15"
 ]
 
 # 定义五个路径集合
@@ -202,6 +199,45 @@ if hasattr(pipe, "text_encoder_2"):
 
 
 valid_extensions = ('.png', '.jpg', '.jpeg', '.bmp', '.tif', '.tiff', '.webp')
+
+
+
+feature_log = {}  # {layer_name: [feat_step0, feat_step1, ...]}
+
+def register_unet_hooks(unet):
+    handles = []
+
+    def make_hook(name):
+        def hook(module, input, output):
+            # output 可能是 tuple，比如 (hidden_states, ...)
+            out = output[0] if isinstance(output, tuple) else output
+            # 防止显存爆炸：不要保留计算图，转到 cpu
+            out = out.detach().float().cpu()
+            feature_log.setdefault(name, []).append(out)
+        return hook
+
+    # 下采样块
+    for i, block in enumerate(unet.down_blocks):
+        h = block.register_forward_hook(make_hook(f"down_{i}"))
+        handles.append(h)
+
+    # mid block
+    if hasattr(unet, "mid_block") and unet.mid_block is not None:
+        h = unet.mid_block.register_forward_hook(make_hook("mid"))
+        handles.append(h)
+
+    # 上采样块
+    for i, block in enumerate(unet.up_blocks):
+        h = block.register_forward_hook(make_hook(f"up_{i}"))
+        handles.append(h)
+
+    return handles
+
+# 关键：这里假设是 pipe.unet，若你实际是 pipe.model，就改成那个
+handles = register_unet_hooks(pipe.unet)
+
+
+
 for input_dir, json_dir, save_dir in zip(input_dirs, json_dirs, save_dirs):
     print(f"Processing: {input_dir}")
     os.makedirs(save_dir, exist_ok=True)
@@ -246,11 +282,17 @@ for input_dir, json_dir, save_dir in zip(input_dirs, json_dirs, save_dirs):
             prompt_init = text
             negative_prompt_init = ""
             generator = torch.Generator(device='cuda').manual_seed(args.seed)
+
+
+
             gen_image = pipe(lr_img=input_image, prompt=prompt_init, negative_prompt=negative_prompt_init,
                              num_inference_steps=args.num_inference_steps, guidance_scale=args.guidance_scale,
                              generator=generator, start_point=args.start_point, height=height_now, width=width_now,
                              overlap=args.latent_tiled_overlap,
                              target_size=(args.latent_tiled_size, args.latent_tiled_size)).images[0]
+
+
+
             if img_name.startswith('rain-'):
                 img_name = "no" + img_name
             path = os.path.join(save_dir, img_name + '.png')

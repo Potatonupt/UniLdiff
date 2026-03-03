@@ -279,8 +279,8 @@ class UNet2DConditionModel(OriginalUNet2DConditionModel, ConfigMixin, UNet2DCond
     def __init__(
         self,
         sample_size: Optional[int] = None,
-        in_channels: int = 4,
-        out_channels: int = 4,
+        in_channels: int = 32,
+        out_channels: int = 32,
         center_input_sample: bool = False,
         flip_sin_to_cos: bool = True,
         freq_shift: int = 0,

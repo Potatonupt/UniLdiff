@@ -84,11 +84,60 @@ def main():
         nargs="+",
         default=
         [
-            '/data2/czh/code/faithdiff/save/tsne/rain100l',
-            # '/data/czh/code/faithdiff/save/epoch16000/rain100l',
-            # '/data/czh/code/faithdiff/save/epoch16000/motion-blurry',
-            # '/data/czh/code/faithdiff/save/epoch16000/noisy50',
-            # '/data/czh/code/faithdiff/save/epoch16000/SOTS'
+            # '/data/tn/work3_cl/AdaIR/result_adair3d/dehaze',
+            # '/data/tn/work3_cl/AdaIR/result_adair3d/derain',
+            # '/data/tn/work3_cl/AdaIR/result_adair3d/denoise/15',
+            # '/data/tn/work3_cl/AdaIR/result_adair3d/denoise/25',
+            # '/data/tn/work3_cl/AdaIR/result_adair3d/denoise/50',
+            # "/data/tn/work3_cl/AdaIR/result_adair5ddehaze",
+            # "/data/tn/work3_cl/AdaIR/result_adair5dderain",
+            # "/data/tn/work3_cl/AdaIR/result_adair5ddenoise/25",
+            # "/data/tn/work3_cl/AdaIR/result_adair5ddeblur",
+            # "/data/tn/work3_cl/AdaIR/result_adair5denhance",
+
+            # "/data/tn/work3_cl/DFPIR/3D/outputdehaze",
+            # "/data/tn/work3_cl/DFPIR/3D/outputderain",
+            # "/data/tn/work3_cl/DFPIR/3D/outputdenoise/15",
+            # "/data/tn/work3_cl/DFPIR/3D/outputdenoise/25",
+            # "/data/tn/work3_cl/DFPIR/3D/outputdenoise/50",
+            # "/data/tn/work3_cl/DFPIR/5D/dehaze",
+            # "/data/tn/work3_cl/DFPIR/5D/derain",
+            # "/data/tn/work3_cl/DFPIR/5D/denoise/25",
+            # "/data/tn/work3_cl/DFPIR/5D/deblur",
+            # "/data/tn/work3_cl/DFPIR/5D/lowlight",
+            #
+            # "/data/tn/work3_cl/VLU-Net/results_3d/SOTS_outdoors/Dehazing",
+            # "/data/tn/work3_cl/VLU-Net/results_3d/Rain100L/Deraining",
+            # "/data/tn/work3_cl/VLU-Net/results_3d/CBSD68/Denoise15",
+            # "/data/tn/work3_cl/VLU-Net/results_3d/CBSD68/Denoise25",
+            # "/data/tn/work3_cl/VLU-Net/results_3d/CBSD68/Denoise50",
+            # "/data/tn/work3_cl/VLU-Net/results_5d/SOTS_outdoors/Dehazing",
+            # "/data/tn/work3_cl/VLU-Net/results_5d/Rain100L/Deraining",
+            # "/data/tn/work3_cl/VLU-Net/results_5d/CBSD68/Denoise25",
+            # "/data/tn/work3_cl/VLU-Net/results_5d/GoPro/Deblurring",
+            # "/data/tn/work3_cl/VLU-Net/results_5d/LoL/Delowlight",
+
+            # "/data2/czh/data/results/rhnbl/instructir/SOTS",
+            # "/data2/czh/data/results/rhnbl/instructir/Rain100L",
+            # "/data2/czh/data/results/rhnbl/instructir/CBSD68_25",
+            # "/data2/czh/data/results/rhnbl/instructir/GoPro",
+            # "/data2/czh/data/results/rhnbl/instructir/LOL",
+
+            # "/data2/czh/data/results/rhnbl/daclip/hazy1",
+            # "/data2/czh/data/results/rhnbl/daclip/rainy1",
+            # "/data2/czh/data/results/rhnbl/daclip/noisy25",
+            # "/data2/czh/data/results/rhnbl/daclip/motion-blurry_stitched",
+            # "/data2/czh/data/results/rhnbl/daclip/low-light"
+
+            # "/data2/czh/data/results/rhnbl/promptir_80/dehaze",
+            # "/data2/czh/data/results/rhnbl/promptir_80/derain",
+            # "/data2/czh/data/results/rhnbl/promptir_80/denoise/25",
+            # "/data2/czh/data/results/rhnbl/promptir_80/motion-blurry_stitched",
+            # "/data2/czh/data/results/rhnbl/promptir_80/low-light",
+            # "/data/wp/work2/daclip-uir-main/universal-image-restoration/config/daclip-sde/result/universal-ir/low-light"
+            "/data2/czh/code/faithdiff/save/nafnet/toled",
+            "/data2/czh/code/faithdiff/save/nafnet/poled"
+
         ],
         help="Path(s) to the input (SR) images directories."
     )
@@ -96,12 +145,44 @@ def main():
     parser.add_argument(
         "--gt_imgs",
         nargs="+",
-        default=['/data2/czh/data/test/tmp',
-                 # '/data/czh/data/test/rainy1/GT',
-                 # '/data/czh/data/test/motion-blurry/GT',
-                 # '/data/czh/data/test/noisy50/GT',
-                 # '/data/czh/data/test/SOTS/GT'
-                 ],
+        default=[
+            # '/data2/czh/data/test/SOTS/GT',
+            # "/data2/czh/data/test/rainy1/GT",
+            # "/data2/czh/data/test/noisy15/GT",
+            # "/data2/czh/data/test/noisy25/GT",
+            # "/data2/czh/data/test/noisy50/GT",
+            # "/data2/czh/data/test/SOTS/GT",
+            # '/data2/czh/data/test/rainy1/GT',
+            # "/data2/czh/data/test/noisy25/GT",
+            # '/data2/czh/data/test/motion-blurry/GT',
+            # '/data2/czh/data/test/low-light/GT',
+            #
+            # '/data2/czh/data/test/SOTS/GT',
+            # "/data2/czh/data/test/rainy1/GT",
+            # "/data/tn/work3_cl/DFPIR/3D/outputdenoise/gt",
+            # "/data/tn/work3_cl/DFPIR/3D/outputdenoise/gt",
+            # "/data/tn/work3_cl/DFPIR/3D/outputdenoise/gt",
+            # "/data2/czh/data/test/SOTS/GT",
+            # '/data2/czh/data/test/rainy1/GT',
+            # "/data/tn/work3_cl/DFPIR/3D/outputdenoise/gt",
+            # '/data2/czh/data/test/motion-blurry/GT',
+            # '/data2/czh/data/test/low-light/GT',
+            #
+            # '/data2/czh/data/test/SOTS/GT',
+            # "/data2/czh/data/test/rainy1/GT",
+            # "/data/tn/work3_cl/DFPIR/3D/outputdenoise/gt",
+            # "/data/tn/work3_cl/DFPIR/3D/outputdenoise/gt",
+            # "/data/tn/work3_cl/DFPIR/3D/outputdenoise/gt",
+            # "/data2/czh/data/test/SOTS/GT",
+            # '/data2/czh/data/test/rainy1/GT',
+            # "/data/tn/work3_cl/DFPIR/3D/outputdenoise/gt",
+            # '/data2/czh/data/test/motion-blurry/GT',
+            # '/data2/czh/data/test/low-light/GT',
+
+            # "/data/tn/data/TOLED_test/TOLED_HQ_512"
+            "/data2/czh/data/test/TOLED_test/TOLED_GT",
+            "/data2/czh/data/test/POLED/poled_images/test_GT"
+        ],
         # /data/wp/datasets/Test/Derain/Rain100L/target /data/wp/work2/daclip-uir-main/datasets/universal/val/noisy15/GT/ /data/wp/work2/daclip-uir-main/datasets/universal/val/low-light/GT/ /data/wp/work2/daclip-uir-main/datasets/universal/val/motion-blurry/GT/
     )
 
@@ -205,25 +286,27 @@ def main():
             img_name = os.path.basename(sr_path)
             gt_name = os.path.basename(gt_path)
 
+            # print(img_name, gt_name)
             start_time = time.time()
 
             # promptIR
-            # degraded_img = crop_img(
-            #     np.array(Image.open(sr_path).convert('RGB')), base=16)
+            degraded_img = crop_img(
+                np.array(Image.open(sr_path).convert('RGB')), base=16)
+
+            clean_img = crop_img(
+                np.array(Image.open(gt_path).convert('RGB')), base=16)
+
+            # clean_pil = Image.open(gt_path).convert('RGB')
+            # clean_img = np.array(clean_pil)
             #
-            # clean_img = crop_img(
-            #     np.array(Image.open(gt_path).convert('RGB')), base=16)
-
-            clean_pil = Image.open(gt_path).convert('RGB')
-            clean_img = np.array(clean_pil)
-
-            degraded_pil = Image.open(sr_path).convert('RGB')
-            if degraded_pil.size != clean_pil.size:
-                degraded_pil = degraded_pil.resize(clean_pil.size, Image.LANCZOS)
-            degraded_img = np.array(degraded_pil)
+            # degraded_pil = Image.open(sr_path).convert('RGB')
+            # if degraded_pil.size != clean_pil.size:
+            #     degraded_pil = degraded_pil.resize(clean_pil.size, Image.LANCZOS)
+            # degraded_img = np.array(degraded_pil)
 
             sr_tensor = img2tensor(degraded_img, bgr2rgb=True, float32=True).unsqueeze(0).to(
                 device).contiguous() / 255.0
+
             gt_tensor = img2tensor(clean_img, bgr2rgb=True, float32=True).unsqueeze(0).to(device).contiguous() / 255.0
 
             # Compute metrics
@@ -244,22 +327,23 @@ def main():
             runtime = end_time - start_time
 
             # Log per-image metrics and runtime
-            metrics_str = "; ".join([f"{k}: {v:.6f}" for k, v in metrics.items()])
-            logger.info(f"{dir_name}/{img_name} {gt_name}| {metrics_str} | Runtime: {runtime:.2f} sec")
+            # metrics_str = "; ".join([f"{k}: {v:.6f}" for k, v in metrics.items()])
+            # logger.info(f"{dir_name}/{img_name} {gt_name}| {metrics_str} | Runtime: {runtime:.2f} sec")
 
         # Compute average metrics
         num_images = len(img_sr_list)
         avg_metrics = {k: round(v / num_images, 4) for k, v in metrics_accum.items()}
 
         # Compute FID for the directory
-        # fid_start_time = time.time()
-        # fid_value = fid_metric(gt_dir, init_dir).item()
-        # fid_end_time = time.time()
-        # fid_runtime = fid_end_time - fid_start_time
+        fid_start_time = time.time()
+        fid_value = fid_metric(gt_dir, init_dir).item()
+        fid_end_time = time.time()
+        fid_runtime = fid_end_time - fid_start_time
 
         # Log average metrics for the directory
-        avg_metrics_str = "".join([f"/{v:.4f}" for k, v in avg_metrics.items()])
-        logger.info(f"\n===== Average Metrics for [{dir_name}] =====\n{avg_metrics_str}\n")
+        avg_metrics_str = "; ".join([f"{k}: {v:.4f}" for k, v in avg_metrics.items()])
+        logger.info(
+            f"\n===== Average Metrics for [{dir_name}] =====\n{avg_metrics_str} | FID: {fid_value:.6f} | FID Runtime: {fid_runtime:.2f} sec\n")
 
         # Optionally, you can accumulate FID if needed for overall statistics
 

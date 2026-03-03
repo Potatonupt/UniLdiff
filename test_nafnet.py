@@ -1,6 +1,6 @@
 import sys
 
-sys.path.insert(0, '/data/czh/code/faithdiff/NAFNet')
+sys.path.insert(0, '/data2/czh/code/faithdiff/NAFNet')
 from NAFNet.basicsr.models.archs.NAFNet_arch import NAFNet
 import torch
 import argparse
@@ -97,10 +97,10 @@ def check_image_size(x, padder_size=8):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--test_in_path', type=str, default='/data/czh/data/test/snowy/unseenlq')
-    parser.add_argument('--test_gt_path', type=str, default='/data/czh/code/faithdiff/save/unseen/snow')
-    parser.add_argument('--model_path', type=str, default='/data/czh/code/faithdiff/nafmodel/epoch_200.pth')
-    parser.add_argument('--save_path', type=str, default='/data/czh/code/faithdiff/save/nafnet/unseenlq/snow')
+    parser.add_argument('--test_in_path', type=str, default='/data2/czh/data/test/TOLED_test/TOLED_GT')
+    parser.add_argument('--test_gt_path', type=str, default='/data2/czh/code/faithdiff/save/toled')
+    parser.add_argument('--model_path', type=str, default='/data2/czh/code/faithdiff/nafmodel/epoch_200.pth')
+    parser.add_argument('--save_path', type=str, default='/data2/czh/code/faithdiff/save/nafnet/toled')
     args = parser.parse_args()
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

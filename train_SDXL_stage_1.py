@@ -756,29 +756,29 @@ def main():
     # lq_low_light_file_path = ['/data/czh/data/train/allinone/low-light/LQ/']
     # low_light_json_file_path = ['./json/low-light']
 
-    dehazing_file_path = ["/data/czh/data/train/CDD11_train/clear",
-                          "/data/czh/data/train/CDD11_train/clear",
-                          "/data/czh/data/train/CDD11_train/clear",
-                          "/data/czh/data/train/CDD11_train/clear",
-                          "/data/czh/data/train/CDD11_train/clear",
-                          "/data/czh/data/train/CDD11_train/clear",
-                          "/data/czh/data/train/CDD11_train/clear",
-                          "/data/czh/data/train/CDD11_train/clear",
-                          "/data/czh/data/train/CDD11_train/clear",
-                          "/data/czh/data/train/CDD11_train/clear",
-                          "/data/czh/data/train/CDD11_train/clear", ]
+    dehazing_file_path = ["/data2/czh/data/train/CDD11_train/clear",
+                          "/data2/czh/data/train/CDD11_train/clear",
+                          "/data2/czh/data/train/CDD11_train/clear",
+                          "/data2/czh/data/train/CDD11_train/clear",
+                          "/data2/czh/data/train/CDD11_train/clear",
+                          "/data2/czh/data/train/CDD11_train/clear",
+                          "/data2/czh/data/train/CDD11_train/clear",
+                          "/data2/czh/data/train/CDD11_train/clear",
+                          "/data2/czh/data/train/CDD11_train/clear",
+                          "/data2/czh/data/train/CDD11_train/clear",
+                          "/data2/czh/data/train/CDD11_train/clear", ]
 
-    lq_dehazing_file_path = ['/data/czh/data/train/CDD11_train/haze',
-                             "/data/czh/data/train/CDD11_train/haze_rain",
-                             "/data/czh/data/train/CDD11_train/haze_snow",
-                             "/data/czh/data/train/CDD11_train/low",
-                             "/data/czh/data/train/CDD11_train/low_haze",
-                             "/data/czh/data/train/CDD11_train/low_haze_rain",
-                             "/data/czh/data/train/CDD11_train/low_haze_snow",
-                             "/data/czh/data/train/CDD11_train/low_rain",
-                             "/data/czh/data/train/CDD11_train/low_snow",
-                             "/data/czh/data/train/CDD11_train/rain",
-                             "/data/czh/data/train/CDD11_train/snow", ]
+    lq_dehazing_file_path = ['/data2/czh/data/train/CDD11_train/haze',
+                             "/data2/czh/data/train/CDD11_train/haze_rain",
+                             "/data2/czh/data/train/CDD11_train/haze_snow",
+                             "/data2/czh/data/train/CDD11_train/low",
+                             "/data2/czh/data/train/CDD11_train/low_haze",
+                             "/data2/czh/data/train/CDD11_train/low_haze_rain",
+                             "/data2/czh/data/train/CDD11_train/low_haze_snow",
+                             "/data2/czh/data/train/CDD11_train/low_rain",
+                             "/data2/czh/data/train/CDD11_train/low_snow",
+                             "/data2/czh/data/train/CDD11_train/rain",
+                             "/data2/czh/data/train/CDD11_train/snow", ]
 
     dehazing_json_file_path = ['./json/CDD11_train',
                                "./json/CDD11_train",

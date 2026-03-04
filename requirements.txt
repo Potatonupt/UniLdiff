@@ -4,3 +4,4 @@ transformers==4.46.1
 huggingfacehub==0.25.1
 basicsr-fixed
 fvcore
+pyiqa

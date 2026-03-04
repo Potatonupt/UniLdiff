@@ -84,7 +84,7 @@ def main():
         nargs="+",
         default=
         [
-            '/data2/czh/code/faithdiff/save/tsne/rain100l',
+            '/data2/czh/code/faithdiff/save/final/rain100l',
             # '/data/czh/code/faithdiff/save/epoch16000/rain100l',
             # '/data/czh/code/faithdiff/save/epoch16000/motion-blurry',
             # '/data/czh/code/faithdiff/save/epoch16000/noisy50',
@@ -96,7 +96,7 @@ def main():
     parser.add_argument(
         "--gt_imgs",
         nargs="+",
-        default=['/data2/czh/data/test/tmp',
+        default=['/data2/czh/data/test/rainy1/GT',
                  # '/data/czh/data/test/rainy1/GT',
                  # '/data/czh/data/test/motion-blurry/GT',
                  # '/data/czh/data/test/noisy50/GT',
@@ -108,7 +108,7 @@ def main():
     parser.add_argument(
         "--log",
         type=str,
-        default="/data/czh/code/osediff/result/SOTS",
+        default="/data2/czh/code/osediff/result/SOTS",
         help="Directory path to save the log files."
     )
 

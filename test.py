@@ -57,7 +57,7 @@ use_bsrnet = args.use_bsrnet
 
 # load FaithDiff FP16
 pipe = FaithDiff_pipeline(sdxl_path=SDXL_PATH, VAE_FP16_path=VAE_FP16_PATH,
-                          FaithDiff_path="/data2/czh/code/faithdiff/train_FaithDiff_stage_2_offline/base/checkpoint-16000/FaithDiff.bin",
+                          FaithDiff_path="/data2/czh/code/faithdiff/train_FaithDiff_stage_2_offline/tmp/checkpoint-14000/FaithDiff.bin",
                           use_fp8=use_fp8)
 pipe = pipe.to(Diffusion_device)
 

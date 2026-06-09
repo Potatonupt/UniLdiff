@@ -2,6 +2,7 @@
 # Evaluates metrics like PSNR, SSIM, LPIPS, FID, DISTS, etc., for a set of images.
 
 import os
+os.environ['HF_ENDPOINT'] = 'https://hf-mirror.com'
 import sys
 import glob
 import argparse
@@ -84,7 +85,7 @@ def main():
         nargs="+",
         default=
         [
-            '/data2/czh/code/faithdiff/save/final/rain100l',
+            '/data2/czh/code/faithdiff/save/dit14000/rain100l',
             # '/data/czh/code/faithdiff/save/epoch16000/rain100l',
             # '/data/czh/code/faithdiff/save/epoch16000/motion-blurry',
             # '/data/czh/code/faithdiff/save/epoch16000/noisy50',
